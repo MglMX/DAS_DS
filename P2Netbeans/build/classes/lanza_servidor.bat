@@ -1,0 +1,1 @@
+"C:\Program Files\Java\jdk1.8.0_151\bin\java" -cp . -Djava.rmi.server.codebase=file:/C:\Users\coque\Documents\DS\Chat\P2Netbeans\P2Netbeans\build\classes -Djava.rmi.server.hostname=localhost -Djava.security.policy=server.policy Servidor

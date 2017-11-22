@@ -1,0 +1,3 @@
+grant codeBase "file:/C:/Users/MiKe/Documents/GitHub/DSD/P2Netbeans/build/classes" {
+    permission java.security.AllPermission;
+};
