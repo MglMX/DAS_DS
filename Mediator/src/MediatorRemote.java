@@ -26,6 +26,10 @@ public class MediatorRemote extends UnicastRemoteObject implements Mediator {
 		this.connectedServers.remove(stub);*/
 	}
 	
+	public Server getServerToConnect () throws RemoteException{
+		return this.connectedServers.get(0); //FIXME make this smarter
+	}
+	
 	public static void main(String[] args) {
 		try{  
 			Mediator stub=new MediatorRemote();  

@@ -5,11 +5,11 @@ import java.util.HashSet;
 
 @SuppressWarnings("serial")
 public class ServerRemote extends UnicastRemoteObject implements Server{
-	private HashSet<String> connectedClients; //FIXME replace String with RemoteClient
+	private HashSet<Client> connectedClients; //FIXME replace String with RemoteClient
 	
 	public ServerRemote() throws RemoteException {
 		super();
-		connectedClients = new HashSet<String>();
+		connectedClients = new HashSet<Client>();
 	}
 	
 	public void notifyConnected() {
@@ -17,11 +17,15 @@ public class ServerRemote extends UnicastRemoteObject implements Server{
 	}
 	public boolean connectClient (String clientName) {
 		try{  
-			//Client stub=(Client)Naming.lookup("rmi://localhost:5000/client/"+clientName);  
-			//System.out.println(stub.add(34,4));  
-			//connectedClients.add(stub);
+			Client stubClient=(Client)Naming.lookup("rmi://localhost:5000/client/"+clientName);   
+			connectedClients.add(stubClient);
+			stubClient.notifyConnected();
 		}
-		catch(Exception e){}  
+		catch(Exception e){
+			System.out.println("Error connecting client");
+			e.printStackTrace();
+		}  
+		System.out.println("Client connected");
 		return true;
 	}
 	public int getNumberOfClients() throws RemoteException{
