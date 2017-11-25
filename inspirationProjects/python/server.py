@@ -1,4 +1,5 @@
 from socket import *
+from utils import *
 import sys, time
 import select
 
@@ -13,9 +14,9 @@ class SendReportState():
 			self.server.state = InitialState(self.server)
 		else:
 			try:
-				self.server.med_sock.send('<MSG>%s</MSG>' % self.server.players_number)
-			except:
-				pass #TODO increase number of errors until it reaches a certain point
+				send(self.server.med_sock, str(self.server.players_number))
+			except Exception, e:
+				print e #TODO increase number of errors until it reaches a certain point
 			self.server.state = HandleClientsState(self.server)
 
 class HandleClientsState():
@@ -30,7 +31,13 @@ class HandleClientsState():
 			current = time.time()
 			if current-begin > self.TIME_BETWEEN_REPORT:
 				break
-			readable, writeable, error = select.select([], [], [], (self.TIME_BETWEEN_REPORT+begin-current))
+			readable, writeable, error = select.select([self.server.sock], [], [], (self.TIME_BETWEEN_REPORT+begin-current))
+			if self.server.sock in readable:
+				conn,addr = self.server.sock.accept()
+				conn.settimeout(1) #FIXME set timeout properly
+				send(conn, "Hey")
+				print 'Player connected'
+				self.server.players_number += 1 #TODO create list of players
 		self.server.state = SendReportState(self.server)
 
 		
@@ -51,6 +58,8 @@ class Server:
 		self.med_port = med_port
 
 		self.sock = socket(AF_INET, SOCK_STREAM)
+
+		print 'Binding to ('+self.local_ip+' , ' + str(self.local_port)+')'
 		self.sock.bind((self.local_ip, local_port))
 		self.sock.listen(50)
 		self.med_sock = None
@@ -76,6 +85,8 @@ class Server:
 		try:
 			s.connect((self.med_ip, self.med_port))
 			s.send('1')
+			send(s, self.local_ip+"|"+str(self.local_port))
+
 			self.med_sock = s
 		except:
 			print 'Error. Mediator is off'
