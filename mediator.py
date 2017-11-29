@@ -14,11 +14,11 @@ class Mediator:
 
 		#self.ip = self.findIp() FIXME
 		self.ip = 'localhost'
+		self.port = port
 
-		if not replica:
-			s.bind((self.ip, port))
-			s.listen(2)
-			self.master = s
+		s.bind((self.ip, port))
+		s.listen(10) #FIXME number of clients connecting at the same time
+		self.master = s
 
 		#Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket)
 		self.servers = {}
@@ -32,18 +32,15 @@ class Mediator:
 			print active
 			med_sock.connect(active) #Connect to active mediator to receive updates
 			med_sock.send(str(REPLICACODE))
-		except Exception, e:
-			print 'No active mediator. I should take over', e
+		except:
 			return
 
 		while 1:
 			try:
 				command = receive(med_sock) #FIXME timeout --> active mediator crashed
 				if command == 'disconnect':
-					print 'No active mediator. I should take over' #Case where the active mediator disconnects.
 					return
 			except:
-				print 'No active mediator. I should take over'
 				return
 			self.handleCommand(command)
 
@@ -57,17 +54,20 @@ class Mediator:
 	def run(self):
 		if self.replica:
 			self.runReplica()
-			return
+			print 'No active mediator. I should take over'
+			self.replica = False
 
-		print 'Running on'
+		print 'Running on',self.ip,self.port
+		if self.master : print 'All ok'
 
 		while 1:
-			toCheck = [self.servers[i][1] for i in self.servers] #Servers
+			toCheck = [self.servers[i][1] for i in self.servers if self.servers[i][1] ] #Servers with proper sockets
 			toCheck.append(self.master) #New connections
 			for replica in self.replicaList:
 				toCheck.append(replica) #Replicas -- If they say something its probably an EOF
 			can_recv, can_send, exceptions = select.select(toCheck, [], [])
 
+			print can_recv
 			if self.master in can_recv: #Could be a new server or a new client
 				self.handleNewConnections()
 
@@ -106,8 +106,8 @@ class Mediator:
 		print 'New server is trying to join: ', addr
 		
 		publish = receive(conn)
-		if publish == 'disconnect': #FIXME
-			print 'Error'
+		if publish == 'disconnect' or publish == None: #FIXME
+			print 'Error handling new server'
 			return
 		print 'New server is running at', publish
 		publish = publish.split('|')
@@ -153,7 +153,8 @@ class Mediator:
 		message = str([i for i in self.servers])
 		for server in self.servers:
 			try:
-				send(self.servers[server][1], message)
+				if self.servers[server][1]:
+					send(self.servers[server][1], message)
 			except Exception,e:
 				print e, 'check this exception to see if you can remove the server from the servers list'
 		self.updateReplicas()
