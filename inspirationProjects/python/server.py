@@ -92,7 +92,7 @@ class Server:
 			print 'Error. Mediator is off'
 			sys.exit(0)
 
-PORT = 6970
+PORT = 6971
 MED_PORT = 6969
 MED_IP = 'localhost'
 
