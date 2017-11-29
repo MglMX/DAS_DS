@@ -11,4 +11,11 @@ public class Dragon extends Unit{
 		healthpoints = new Random().nextInt(health_max-health_min+1)+health_min;
 		attackpower = new Random().nextInt(attack_max-attack_min+1)+attack_min;;
 	}
+	
+	private void attackPlayer()
+	{
+		
+	}
+	
+	
 }

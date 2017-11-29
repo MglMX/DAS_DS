@@ -9,4 +9,9 @@ public abstract class Unit {
 		
 	}
 	
+	private void loseHealth(int hp)
+	{
+		healthpoints -= hp;
+	}
+	
 }
