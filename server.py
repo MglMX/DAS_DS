@@ -29,11 +29,11 @@ class HandleClientsState():
 		begin = time.time()
 		while 1:
 			current = time.time()
-			if current-begin > self.TIME_BETWEEN_REPORT:
+			if current-begin > self.TIME_BETWEEN_REPORT: #Check if the time to handle clients has passed so the state should be changed to sendReport
 				break
 			readable, writeable, error = select.select([self.server.sock], [], [], (self.TIME_BETWEEN_REPORT+begin-current))
 			if self.server.sock in readable:
-				conn,addr = self.server.sock.accept()
+				conn,addr = self.server.sock.accept() #conn holds the socket necessary to connect to the client
 				conn.settimeout(1) #FIXME set timeout properly
 				send(conn, "Hey")
 				print 'Player connected'
@@ -42,7 +42,7 @@ class HandleClientsState():
 
 		
 class InitialState():
-	''' All states have function "run" '''
+	''' All states have function "run"	'''
 	def __init__(self, server):
 		self.server = server
 		self.stateName = "Initial State"
@@ -79,13 +79,13 @@ class Server:
 		#State machine
 		self.state.run()
 	def publish(self):
-		''' Publish this server on themediator allowing it to receive updates from other servers '''
+		''' Publish this server on the mediator allowing it to receive updates from other servers '''
 		s = socket(AF_INET, SOCK_STREAM)
 		s.settimeout(0.5)
 		try:
-			s.connect((self.med_ip, self.med_port))
-			s.send('1')
-			send(s, self.local_ip+"|"+str(self.local_port))
+			s.connect((self.med_ip, self.med_port)) #Connection with the mediator
+			s.send('1') #Specify that the it is a server trying to connect
+			send(s, self.local_ip+"|"+str(self.local_port)) #Send to the mediator the ip and port of the server
 
 			self.med_sock = s
 		except:

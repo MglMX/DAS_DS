@@ -15,10 +15,10 @@ class Mediator:
 		#self.ip = self.findIp() FIXME
 		self.ip = 'localhost'
 		self.port = port
-
+ 
 		s.bind((self.ip, port))
 		s.listen(10) #FIXME number of clients connecting at the same time
-		self.master = s
+		self.master = s #master is the socket were the servers and client will connect to
 
 		#Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket)
 		self.servers = {}
@@ -37,7 +37,7 @@ class Mediator:
 
 		while 1:
 			try:
-				command = receive(med_sock) #FIXME timeout --> active mediator crashed
+				command = receive(med_sock) #FIXME timeout --> active mediator crashed #
 				if command == 'disconnect':
 					return
 			except:
@@ -65,7 +65,7 @@ class Mediator:
 			toCheck.append(self.master) #New connections
 			for replica in self.replicaList:
 				toCheck.append(replica) #Replicas -- If they say something its probably an EOF
-			can_recv, can_send, exceptions = select.select(toCheck, [], [])
+			can_recv, can_send, exceptions = select.select(toCheck, [], []) 
 
 			print can_recv
 			if self.master in can_recv: #Could be a new server or a new client
@@ -83,6 +83,7 @@ class Mediator:
 					self.replicaList.remove(toRemove)
 				
 	def handleNewConnections(self):
+		'''Distinguish if it is a server or a client trying to connect to the mediator '''
 		conn,addr = self.master.accept()
 		conn.settimeout(1) #Just to avoid deadlock waiting for it to send or recv
 
@@ -103,9 +104,10 @@ class Mediator:
 			self.replicaList.append(conn)
 
 	def handleNewServer(self, conn, addr):
+	''' Add the new server to the list of servers'''
 		print 'New server is trying to join: ', addr
 		
-		publish = receive(conn)
+		publish = receive(conn) #Obtain the message with the ip and port of the server trying to connect
 		if publish == 'disconnect' or publish == None: #FIXME
 			print 'Error handling new server'
 			return
@@ -117,6 +119,7 @@ class Mediator:
 		self.broadcastList()
 
 	def handleNewClient(self, conn, addr):
+	'''Sends to the client the ip and port of the server with less connected users '''
 		print 'New client is trying to join: ', addr
 
 		#Search for a good server for him
@@ -134,6 +137,7 @@ class Mediator:
 					break
 
 	def handleNewReports(self, can_recv):
+	''' '''
 		servers = self.servers.keys() #List of servers
 		for server in servers:
 			if self.servers[server][1] in can_recv: #If server sent a message
