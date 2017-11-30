@@ -36,13 +36,7 @@ class Client:
 		else:
 			return self.getAddress(msg)
 	def getAddress(self, initial_msg):
-		ip = initial_msg
-		ip = ip[2:]
-		ip = ip[:-1]
-		ip = ip.split(',')
-		port = int(ip[1][1:])
-		ip = ip[0][:-1]
-		return ip,port
+		return eval(initial_msg)
 
 	def receiveBoard(self, board) :
 		msg = receive(self.s)
