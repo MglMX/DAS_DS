@@ -18,6 +18,7 @@ class Client:
 		print 'Successfully connected. Gonna exit now tough'
 
 	def getServer(self):
+		#TODO try 3 times to connect to any mediator
 		for mediator in range(len(self.med_list)):
 			s = socket(AF_INET, SOCK_STREAM)
 			s.settimeout(0.5)
@@ -39,7 +40,7 @@ class Client:
 		else:
 			return self.getAddress(msg)
 	def getAddress(self, initial_msg):
-		return eval(initial_msg)
+		return eval(initial_msg) #(ip,port)
 
 	def receiveBoard(self, board) :
 		msg = receive(self.s)

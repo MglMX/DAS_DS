@@ -31,11 +31,11 @@ class HandleClientsState():
 		begin = time.time()
 		while 1:
 			current = time.time()
-			if current-begin > self.TIME_BETWEEN_REPORT:
+			if current-begin > self.TIME_BETWEEN_REPORT: #Check if the time to handle clients has passed so the state should be changed to sendReport
 				break
 			readable, writeable, error = select.select([self.server.sock], [], [], (self.TIME_BETWEEN_REPORT+begin-current))
 			if self.server.sock in readable:
-				conn,addr = self.server.sock.accept()
+				conn,addr = self.server.sock.accept() #conn holds the socket necessary to connect to the client
 				conn.settimeout(1) #FIXME set timeout properly
 				send(conn, "Hey")
 				print 'Player connected'
@@ -44,7 +44,7 @@ class HandleClientsState():
 
 		
 class InitialState():
-	''' All states have function "run" '''
+	''' All states have function "run"	'''
 	def __init__(self, server):
 		self.server = server
 		self.stateName = "Initial State"
@@ -107,7 +107,6 @@ class Server:
 				else:
 					continue
 			break
-
 
 PORT = 6971
 
