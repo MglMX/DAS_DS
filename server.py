@@ -96,7 +96,7 @@ PORT = 6971
 MED_PORT = 6969
 MED_IP = 'localhost'
 
-if len(sys.argv)>1 :
+if len(sys.argv)>1:
 	PORT=int(sys.argv[1]) #optional port passing in case there are more than one server in the network.
 
 s = Server(PORT, MED_IP, MED_PORT)

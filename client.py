@@ -65,7 +65,7 @@ class Client:
 
 
 IP = 'localhost'
-PORT = 6969
+PORT = 6970
 
 s = Client(IP, PORT)
 gui = Gui()
