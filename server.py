@@ -1,5 +1,5 @@
 from socket import *
-from utils import *
+from utils  import *
 import sys, time
 import select
 
@@ -15,9 +15,11 @@ class SendReportState():
 		else:
 			try:
 				send(self.server.med_sock, str(self.server.players_number))
-			except Exception, e:
-				print e #TODO increase number of errors until it reaches a certain point
-			self.server.state = HandleClientsState(self.server)
+				self.server.state = HandleClientsState(self.server)
+			except Exception, e: #Mediator is inactive
+				print 'Error:',e
+				self.server.state = InitialState(self.server) #Try to contact other mediator
+			
 
 class HandleClientsState():
 	''' All states have function "run" '''
@@ -51,12 +53,10 @@ class InitialState():
 		self.server.state = HandleClientsState(self.server)
 
 class Server:
-	def __init__(self, local_port, med_ip, med_port):
+	def __init__(self, local_port, med_list):
 		self.local_ip = self.findIp()
 		self.local_port = local_port
-		self.med_ip = med_ip
-		self.med_port = med_port
-
+		self.med_list = med_list
 		self.sock = socket(AF_INET, SOCK_STREAM)
 
 		print 'Binding to ('+self.local_ip+' , ' + str(self.local_port)+')'
@@ -80,26 +80,41 @@ class Server:
 		self.state.run()
 	def publish(self):
 		''' Publish this server on themediator allowing it to receive updates from other servers '''
-		s = socket(AF_INET, SOCK_STREAM)
-		s.settimeout(0.5)
-		try:
-			s.connect((self.med_ip, self.med_port))
-			s.send('1')
-			send(s, self.local_ip+"|"+str(self.local_port))
+		errors = 0
+		while 1:
+			for mediator in range(len(self.med_list)):
+				s = socket(AF_INET, SOCK_STREAM)
+				s.settimeout(0.5)
+				ip = self.med_list[mediator][0]
+				port = self.med_list[mediator][1]
+				try: #Try connecting to each mediator in the same order as it is in utils.py
+					print 'Trying the mediator at ('+ip+','+str(port)+')'
+					s.connect((ip, port))
+					s.send('1')
+					send(s, self.local_ip+"|"+str(self.local_port))
 
-			self.med_sock = s
-		except:
-			print 'Error. Mediator is off'
-			sys.exit(0)
+					self.med_sock = s
+					break
+				except Exception,e:
+					print 'Mediator number %s is not active: %s' % (mediator,e)
+					
+			else:
+				time.sleep(1)
+				print 'There is no active mediator...'
+				errors += 1
+				if errors == 3: #Try three times before quitting [FIXME number]
+					sys.exit()
+				else:
+					continue
+			break
+
 
 PORT = 6971
-MED_PORT = 6969
-MED_IP = 'localhost'
 
 if len(sys.argv)>1:
 	PORT=int(sys.argv[1]) #optional port passing in case there are more than one server in the network.
 
-s = Server(PORT, MED_IP, MED_PORT)
+s = Server(PORT, MED_LIST)
 
 while 1:
 	print s.state.stateName #Debug

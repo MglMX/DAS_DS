@@ -1,16 +1,14 @@
+from utils  import * #receive and send
 from socket import *
-from utils import * #receive and send
-import sys, board
-from gui import Gui, Dragon, Player
-from board import Board
-import pygame
-from empty import Empty
+from gui    import Gui, Dragon, Player
+from board  import Board
+from empty  import Empty
+import pygame, sys
 
 class Client:
-	def __init__(self, ipMediator, portMediator):
+	def __init__(self, med_list):
 		self.s = None #Will hold the connection between client and server
-		self.ipMediator = ipMediator
-		self.portMediator = portMediator
+		self.med_list = med_list
 
 		ip, port = self.getServer() #Fetch a server from the mediator
 
@@ -20,16 +18,21 @@ class Client:
 		print 'Successfully connected. Gonna exit now tough'
 
 	def getServer(self):
-		s = socket(AF_INET, SOCK_STREAM)
-
-		try:
-			s.connect((self.ipMediator, self.portMediator)) #Connect to mediator
-			s.send('0')										#Send message to say I am a client
-			msg = receive(s)								#Receive server ip and port
-		except:
-			print 'Mediator is offline'
-			return
-
+		for mediator in range(len(self.med_list)):
+			s = socket(AF_INET, SOCK_STREAM)
+			s.settimeout(0.5)
+			ip = self.med_list[mediator][0]
+			port = self.med_list[mediator][1]
+			try:
+				s.connect((ip, port)) #Connect to mediator
+				s.send('0')										#Send message to say I am a client
+				msg = receive(s)
+				break								#Receive server ip and port
+			except Exception, e:
+				print 'Mediator number %s is not active: %s' % (mediator,e)
+		else:
+			print 'There is no active mediator...'
+			sys.exit(0)
 		if "ERROR" in msg:
 			print msg
 			sys.exit()
@@ -63,7 +66,7 @@ IP = 'localhost'
 PORT = 6969
 
 
-s = Client(IP, PORT)
+s = Client(MED_LIST)
 gui = Gui()
 board = Board()
 s.receiveBoard(board)

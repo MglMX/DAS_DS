@@ -9,22 +9,25 @@ REPLICACODE = 2
 class Mediator:
 	def __init__(self, port, replica=False):
 
-		s = socket(AF_INET,SOCK_STREAM)
-		s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 3)
-
 		#self.ip = self.findIp() FIXME
 		self.ip = 'localhost'
 		self.port = port
-
-		s.bind((self.ip, port))
-		s.listen(10) #FIXME number of clients connecting at the same time
-		self.master = s
+		self.master = None
+		if not replica:
+			self.initMasterSocket()
 
 		#Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket)
 		self.servers = {}
 		self.replica = replica
 		self.replicaList = []
 
+	def initMasterSocket(self):
+		print 'Opening connections on ('+self.ip+','+str(self.port)+')'
+		s = socket(AF_INET,SOCK_STREAM)
+		s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 3)
+		s.bind((self.ip, self.port))
+		s.listen(10) #FIXME number of clients connecting at the same time
+		self.master = s
 	def runReplica(self):
 		active = MED_LIST[0]
 		med_sock = socket(AF_INET, SOCK_STREAM)
@@ -33,14 +36,17 @@ class Mediator:
 			med_sock.connect(active) #Connect to active mediator to receive updates
 			med_sock.send(str(REPLICACODE))
 		except:
+			med_sock.close()
 			return
 
 		while 1:
 			try:
 				command = receive(med_sock) #FIXME timeout --> active mediator crashed
 				if command == 'disconnect':
+					med_sock.close()
 					return
 			except:
+				med_sock.close()
 				return
 			self.handleCommand(command)
 
@@ -56,15 +62,21 @@ class Mediator:
 			self.runReplica()
 			print 'No active mediator. I should take over'
 			self.replica = False
+			self.servers = {}
 
 		print 'Running on',self.ip,self.port
-		if self.master : print 'All ok'
+		
+		if self.master:
+			print 'All ok'
+		else:
+			self.initMasterSocket()
 
 		while 1:
 			toCheck = [self.servers[i][1] for i in self.servers if self.servers[i][1] ] #Servers with proper sockets
 			toCheck.append(self.master) #New connections
 			for replica in self.replicaList:
 				toCheck.append(replica) #Replicas -- If they say something its probably an EOF
+			print toCheck
 			can_recv, can_send, exceptions = select.select(toCheck, [], [])
 
 			print can_recv
@@ -84,6 +96,7 @@ class Mediator:
 				
 	def handleNewConnections(self):
 		conn,addr = self.master.accept()
+		print addr,'TRYING TO CONNECT'
 		conn.settimeout(1) #Just to avoid deadlock waiting for it to send or recv
 
 		try:
@@ -109,10 +122,14 @@ class Mediator:
 		if publish == 'disconnect' or publish == None: #FIXME
 			print 'Error handling new server'
 			return
-		print 'New server is running at', publish
-		publish = publish.split('|')
-		publish = (publish[0], int(publish[1])) #(ip,port)
-		self.servers[publish] = (0, conn) #TODO - receive port where server will be operational for clients
+
+		if publish in self.servers:
+			self.servers[publish] = (0, conn) #TODO - receive port where server will be operational for clients
+		else:
+			print 'New server is running at', publish
+			publish = publish.split('|')
+			publish = (publish[0], int(publish[1])) #(ip,port)
+			self.servers[publish] = (0, conn) #TODO - receive port where server will be operational for clients
 
 		self.broadcastList()
 

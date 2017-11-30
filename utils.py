@@ -1,6 +1,6 @@
 #Utils with communication functions that are common to all modules
 
-MED_LIST = [('localhost', 6969), ('localhost', 6970)] #FIXME at deployment
+MED_LIST = [('localhost', 6969), ('localhost', 6970)] #FIXME at deployment --> This is the list of mediator (first element) and its replicas
 
 def send(sock, message):
 	print 'Sending message:',message
