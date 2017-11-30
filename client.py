@@ -44,7 +44,7 @@ class Client:
 		ip = ip[0][:-1]
 		return ip,port
 
-	def receiveBoard(self, board)
+	def receiveBoard(self, board) :
 		msg = receive(self.s)
 		msg = eval(msg)
 

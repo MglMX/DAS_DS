@@ -75,11 +75,11 @@ class Server:
 		s.close()
 		return res
 
-	def run(self):
+	def run(self): 
 		#State machine
 		self.state.run()
 	def publish(self):
-		''' Publish this server on the mediator allowing it to receive updates from other servers '''
+		''' Publish this server on themediator allowing it to receive updates from other servers '''
 		s = socket(AF_INET, SOCK_STREAM)
 		s.settimeout(0.5)
 		try:
@@ -95,6 +95,9 @@ class Server:
 PORT = 6971
 MED_PORT = 6969
 MED_IP = 'localhost'
+
+if len(sys.argv)>1 :
+	PORT=int(sys.argv[1]) #optional port passing in case there are more than one server in the network.
 
 s = Server(PORT, MED_IP, MED_PORT)
 
