@@ -18,7 +18,7 @@ def receive(sock, MAX_SIZE=4096):
 				return 'disconnect'
 			if c != find[i]:
 				print 'Error in receive. Invalid header'
-				return
+				return 'disconnect'
 
 		while '</MSG>' not in message:
 			c = sock.recv(1)
@@ -27,9 +27,10 @@ def receive(sock, MAX_SIZE=4096):
 			message += c
 			if curr_size > MAX_SIZE+6:
 				print 'Received message bigger than MAX_SIZE'
-				return
+				return 'disconnect'
 
 		return message[:-6]
 	except:
 		print 'Error in receive. Not enough data in buffer or invalid headers'
+		return 'disconnect'
 
