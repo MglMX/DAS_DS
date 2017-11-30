@@ -6,10 +6,36 @@ CLIENTCODE  = 0
 SERVERCODE  = 1
 REPLICACODE = 2
 
+class Queue:
+	def __init__(self):
+		self.queueList = []
+		self.timestamp = 0
+		self.addTick = 10
+	def getQueue(self):
+		''' Returns the queue as a string to send to the servers '''
+		return str((self.timestamp,self.timestamp+self.addTick, self.queueList )) #FIXME JSON
+	def tick(self):
+		self.timestamp += self.addTick #First, set new time stamp of the queue
+		#Then, change the queue
+		size = len(self.queueList)
+		for i in range(size/2):
+			tmp = self.queueList[i]
+			self.queueList[i] = self.queueList[size-i-1]
+			self.queueList[size-i-1] = tmp
+	def getQueueList(self):
+		return self.queueList
+	def setQueue(self, queue):
+		self.timestamp = queue[0]
+		self.addTick   = queue[1]
+		self.queueList = queue[2]
+	def addToQueue(self, server):
+		''' Server is tuple (ip,port) that uniquely identifies it '''
+		self.queueList.append(server)
+
 class Mediator:
 	def __init__(self, port, replica=False):
 
-		#self.ip = self.findIp() FIXME
+		#self.ip = self.findIp() FIXME at deployment
 		self.ip = 'localhost'
 		self.port = port
 		self.master = None
@@ -18,6 +44,10 @@ class Mediator:
 
 		#Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket)
 		self.servers = {}
+		self.queue = Queue() #priority queue
+		#TODO SYNCHRONIZE STUFF
+
+		#Replica stuff
 		self.replica = replica
 		self.replicaList = []
 
@@ -26,7 +56,7 @@ class Mediator:
 		s = socket(AF_INET,SOCK_STREAM)
 		s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 3)
 		s.bind((self.ip, self.port))
-		s.listen(10) #FIXME number of clients connecting at the same time
+		s.listen(10) #FIXME number of clients connecting at the same time. should support the 100 right?
 		self.master = s
 	def runReplica(self):
 		active = MED_LIST[0]
@@ -52,7 +82,11 @@ class Mediator:
 
 	def handleCommand(self, command):
 		''' For now this only updates the server list. Later we need to update the queue to [FIXME] '''
-		self.servers = eval(command)
+
+		#FIXME JSON WAY TO DO IT
+		msg = eval(command)
+		self.servers = msg[0]
+		self.queue.setQueue(msg[1])
 		for server in self.servers:
 			self.servers[server] = (self.servers[server][0],None)
 		print 'Updated list of servers:',self.servers
@@ -62,7 +96,6 @@ class Mediator:
 			self.runReplica()
 			print 'No active mediator. I should take over'
 			self.replica = False
-			self.servers = {}
 
 		print 'Running on',self.ip,self.port
 		
@@ -77,10 +110,8 @@ class Mediator:
 			for replica in self.replicaList:
 				toCheck.append(replica) #Replicas -- If they say something its probably an EOF
 
-			print toCheck
 			can_recv, can_send, exceptions = select.select(toCheck, [], [])
 
-			print can_recv
 			if self.master in can_recv: #Could be a new server or a new client
 				self.handleNewConnections()
 
@@ -126,12 +157,12 @@ class Mediator:
 			print 'Error handling new server'
 			return
 
+		publish = publish.split('|')
+		publish = (publish[0], int(publish[1])) #(ip,port)
 		if publish in self.servers:
 			self.servers[publish] = (0, conn) #TODO - receive port where server will be operational for clients
 		else:
 			print 'New server is running at', publish
-			publish = publish.split('|')
-			publish = (publish[0], int(publish[1])) #(ip,port)
 			self.servers[publish] = (0, conn) #TODO - receive port where server will be operational for clients
 
 		self.broadcastList()
@@ -188,7 +219,7 @@ class Mediator:
 				message = {}
 				for i in self.servers:
 					message[i] = (self.servers[i][0],) #Remove the sockets from the self.servers dictionary and send it
-				message = str(message)
+				message = str((message, self.queue.getQueue()))
 				send(replica, message)
 			except:
 				toRemove.append(replica)
