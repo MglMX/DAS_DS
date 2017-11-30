@@ -3,7 +3,7 @@ from socket import *
 from gui    import Gui, Dragon, Player
 from board  import Board
 from empty  import Empty
-import pygame, sys
+import pygame, sys, time
 
 class Client:
 	def __init__(self, med_list):
@@ -18,22 +18,30 @@ class Client:
 		print 'Successfully connected. Gonna exit now tough'
 
 	def getServer(self):
-		#TODO try 3 times to connect to any mediator
-		for mediator in range(len(self.med_list)):
-			s = socket(AF_INET, SOCK_STREAM)
-			s.settimeout(0.5)
-			ip = self.med_list[mediator][0]
-			port = self.med_list[mediator][1]
-			try:
-				s.connect((ip, port)) #Connect to mediator
-				s.send('0')										#Send message to say I am a client
-				msg = receive(s)
-				break								#Receive server ip and port
-			except Exception, e:
-				print 'Mediator number %s is not active: %s' % (mediator,e)
-		else:
-			print 'There is no active mediator...'
-			sys.exit(0)
+		errors = 0
+		while 1:
+			for mediator in range(len(self.med_list)):
+				s = socket(AF_INET, SOCK_STREAM)
+				s.settimeout(0.5)
+				ip = self.med_list[mediator][0]
+				port = self.med_list[mediator][1]
+				try:
+					s.connect((ip, port)) #Connect to mediator
+					s.send('0')										#Send message to say I am a client
+					msg = receive(s)
+					break								#Receive server ip and port
+				except Exception, e:
+					print 'Mediator number %s is not active: %s' % (mediator,e)
+			else:
+				errors += 1
+				if errors == 3:
+					print 'There is no active mediator...'
+					sys.exit(0)
+				else:
+					print 'Trying again...'
+					time.sleep(1)
+					continue
+			break
 		if "ERROR" in msg:
 			print msg
 			sys.exit()
