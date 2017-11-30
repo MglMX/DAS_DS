@@ -60,7 +60,7 @@ class Client:
 
 IP = 'localhost'
 
-PORT = 6971
+PORT = 6969
 
 
 s = Client(IP, PORT)
