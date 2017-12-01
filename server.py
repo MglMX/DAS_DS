@@ -5,18 +5,19 @@ import select
 
 class SendReportState():
 	def __init__(self, server):
-		''' All states have function "run" '''
+		'''
+		Sends a report to the mediator about how many players are connected to the server
+		All states have function "run" '''
 		self.server = server
 		self.stateName = "Send Report State"
 	def run(self):
-		if self.server.med_sock == None:
+		if self.server.med_sock is None:
 			print 'Error. No mediator socket. Should publish again'
 			self.server.state = InitialState(self.server)
 		else:
 			try:
-				report = {"type":"Report", "content":{"connectedPlayers":self.server.players_number}}
-				send(self.server.med_sock, report)
-				#send(self.server.med_sock, str(self.server.players_number))
+				report = {"type":"Report", "content":{"connectedPlayers":int (self.server.players_number)}}
+				send(self.server.med_sock, json.dumps(report))
 				self.server.state = HandleClientsState(self.server)
 			except Exception, e: #Mediator is inactive
 				print 'Error:',e
@@ -81,7 +82,7 @@ class Server:
 		#State machine
 		self.state.run()
 	def publish(self):
-		''' Publish this server on themediator allowing it to receive updates from other servers '''
+		''' Publish this server on the mediator allowing it to receive updates from other servers '''
 		errors = 0
 		while 1:
 			for mediator in range(len(self.med_list)):
@@ -113,9 +114,12 @@ class Server:
 			break
 
 PORT = 6971
-
+'''
 if len(sys.argv)>1:
 	PORT=int(sys.argv[1]) #optional port passing in case there are more than one server in the network.
+'''
+
+PORT = int(raw_input("Indicate port. Ex: 6971"))
 
 s = Server(PORT, MED_LIST)
 

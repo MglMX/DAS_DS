@@ -59,12 +59,14 @@ class Mediator:
 		s.listen(10) #FIXME number of clients connecting at the same time. should support the 100 right?
 		self.master = s
 	def runReplica(self):
+		print "I am in runReplica"
 		active = MED_LIST[0]
 		med_sock = socket(AF_INET, SOCK_STREAM)
 		try:
 			print active
 			med_sock.connect(active) #Connect to active mediator to receive updates
-			med_sock.send(str(REPLICACODE))
+			nodeType = {"type": "InitialConnection","content": {"nodeType": REPLICACODE}}  # JSon indicating that it is a server trying to connect
+			send(med_sock, json.dumps(nodeType))
 		except:
 			med_sock.close()
 			return
@@ -72,17 +74,22 @@ class Mediator:
 		while 1:
 			try:
 				command = receive(med_sock) #FIXME timeout --> active mediator crashed #
+				print "Received command from mediator:",command
+
 				if command == 'disconnect':
 					med_sock.close()
 					return
-			except:
+			except Exception, e:
+				print "Exception receiving command"
+				#print "Exception receiving command in mediator: %s"(e)
 				med_sock.close()
 				return
 			self.handleCommand(command)
 
 	def handleCommand(self, command):
 		''' For now this only updates the server list. Later we need to update the queue to [FIXME] '''
-
+		print "Handle command"
+		print "Command: "+command
 		#FIXME JSON WAY TO DO IT
 		msg = eval(command)
 		self.servers = msg[0]
@@ -138,7 +145,7 @@ class Mediator:
 				who = int(message["content"]["nodeType"])
 				
 			else:
-				print "I was expecting IniticalConnection as type in message and got " + message[type]
+				print "I was expecting IniticalConnection as type in message and got " + message["type"]
 			
 		except:
 			return
@@ -161,7 +168,7 @@ class Mediator:
 		print 'New server is trying to join: ', addr
 		
 		message = receive(conn) #Obtain the message with the ip and port of the server trying to connect
-		if message["type"] == 'Error' or message == None: #FIXME
+		if message["type"] == 'Error' or message is None: #FIXME
 			print 'Error handling new server'
 			return
 		
@@ -218,10 +225,16 @@ class Mediator:
 		self.updateReplicas()
 	def broadcastList(self):
 		''' Send an up-to-date list of servers to everyone '''
+		print "Ready to broadcast"
+		# Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket)
+		serverList = {"type": "ServerList","content": {"servers":[i for i in self.servers] }}
 		message = str([i for i in self.servers])
+		print "message: "+str(serverList)
+
 		for server in self.servers:
 			try:
 				if self.servers[server][1]:
+					print "I am going to send a message to the server "+str(server)
 					send(self.servers[server][1], message)
 			except Exception,e:
 				print e, 'check this exception to see if you can remove the server from the servers list'
@@ -230,11 +243,14 @@ class Mediator:
 		#Update replicas
 		toRemove = []
 		for replica in self.replicaList:
+			print "Sending server list to replica"
 			try:
 				message = {}
 				for i in self.servers:
 					message[i] = (self.servers[i][0],) #Remove the sockets from the self.servers dictionary and send it
+					print "To replica. message[",i,"]: ",message[i]
 				message = str((message, self.queue.getQueue()))
+				print "To replica. message:",message
 				send(replica, message)
 			except:
 				toRemove.append(replica)
@@ -252,9 +268,19 @@ class Mediator:
 		s.close()
 		return res
 
+'''
 if len(sys.argv) > 1 and sys.argv[1] == 'replica': #FIXME way to see if we want to run a replica or the normal server
 	mediator = Mediator(MED_LIST[1][1], replica=True)
 else:
 	mediator = Mediator(MED_LIST[0][1])
+'''
+
+answer = raw_input("Am I a replica? (y/n)")
+if answer == 'y':
+	print "I am a replica"
+	mediator = Mediator(MED_LIST[1][1], replica=True)
+else:
+	mediator = Mediator(MED_LIST[0][1])
+
 
 mediator.run()
