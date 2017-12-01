@@ -16,8 +16,8 @@ class SendReportState():
 			self.server.state = InitialState(self.server)
 		else:
 			try:
-				report = {"type":"Report", "content":{"connectedPlayers":int (self.server.players_number)}}
-				send(self.server.med_sock, json.dumps(report))
+				report = json.dumps({"type":"Report", "content":{"connectedPlayers":int (self.server.players_number)}})
+				send(self.server.med_sock, report)
 				self.server.state = HandleClientsState(self.server)
 			except Exception, e: #Mediator is inactive
 				print 'Error:',e
@@ -40,7 +40,8 @@ class HandleClientsState():
 			if self.server.sock in readable:
 				conn,addr = self.server.sock.accept() #conn holds the socket necessary to connect to the client
 				conn.settimeout(1) #FIXME set timeout properly
-				send(conn, "Hey")
+				succMessage = json.dumps({"type": "SuccesfullConnection", "content": {"info":"Connected succesfully to the server"}})#FIXME Provavly we can directly send the board here
+				send(conn, succMessage)
 				print 'Player connected'
 				self.server.players_number += 1 #TODO create list of players
 		self.server.state = SendReportState(self.server)
@@ -93,10 +94,10 @@ class Server:
 				try: #Try connecting to each mediator in the same order as it is in utils.py
 					print 'Trying the mediator at ('+ip+','+str(port)+')'
 					s.connect((ip, port))
-					nodeType = {"type":"InitialConnection","content":{"nodeType":1}} #JSon indicating that it is a server trying to connect
-					send(s, json.dumps(nodeType))
-					serverInfo = {"type":"ServerInfo","content":{"ip":self.local_ip,"port":self.local_port}} #JSon with the info of the server
-					send(s, json.dumps(serverInfo))
+					nodeType = json.dumps({"type":"InitialConnection","content":{"nodeType":1}}) #JSon indicating that it is a server trying to connect
+					send(s, nodeType)
+					serverInfo = json.dumps({"type":"ServerInfo","content":{"ip":self.local_ip,"port":self.local_port}}) #JSon with the info of the server
+					send(s, serverInfo)
 
 					self.med_sock = s
 					break

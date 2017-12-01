@@ -28,8 +28,8 @@ class Client:
 				port = self.med_list[mediator][1]
 				try:
 					s.connect((ip, port)) #Connect to mediator
-					nodeType = {"type":"InitialConnection","content":{"nodeType":0}} #JSon indicating that it is a client trying to connect
-					send(s, json.dumps(nodeType))
+					nodeType = json.dumps({"type":"InitialConnection","content":{"nodeType":0}}) #JSon indicating that it is a client trying to connect
+					send(s, nodeType)
 					print "I indicated the mediator that I am a client"
 					message = receive(s)								#Receive server ip and port
 					print "Received server to connect to"

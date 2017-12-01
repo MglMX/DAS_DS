@@ -65,8 +65,8 @@ class Mediator:
 		try:
 			print active
 			med_sock.connect(active) #Connect to active mediator to receive updates
-			nodeType = {"type": "InitialConnection","content": {"nodeType": REPLICACODE}}  # JSon indicating that it is a server trying to connect
-			send(med_sock, json.dumps(nodeType))
+			nodeType = json.dumps({"type": "InitialConnection","content": {"nodeType": REPLICACODE}})  # JSon indicating that it is a server trying to connect
+			send(med_sock, nodeType)
 		except:
 			med_sock.close()
 			return
@@ -192,16 +192,16 @@ class Mediator:
 
 		#Search for a good server for him
 		if len(self.servers) == 0:
-			errorInfo = {"type": "Error", "content": {"info": "The server is offline"}}
-			send(conn, json.dumps(errorInfo)) #no servers available
+			errorInfo = json.dumps({"type": "Error", "content": {"info": "The server is offline"}})
+			send(conn, errorInfo) #no servers available
 		else:
 			minimum = min([self.servers[i][0] for i in self.servers])
 			for server in self.servers:				
 				#TODO - Geographical Scalability - maybe choose the one with less players and closer to the player accordingly to a formula
 				if self.servers[server][0] == minimum: 
 					try:
-						serverInfo = {"type":"ServerInfo","content":{"ip":str(server[0]),"port":int(server[1])}}
-						send(conn, json.dumps(serverInfo)) #This one :D
+						serverInfo = json.dumps({"type":"ServerInfo","content":{"ip":str(server[0]),"port":int(server[1])}})
+						send(conn, serverInfo) #This one :D
 						print "Information of the server sent to the client"
 					except:
 						pass
@@ -230,7 +230,7 @@ class Mediator:
 		''' Send an up-to-date list of servers to everyone '''
 		print "Ready to broadcast"
 		# Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket)
-		serverList = {"type": "ServerList","content": {"servers":[i for i in self.servers] }}
+		serverList = json.dumps({"type": "ServerList","content": {"servers":[i for i in self.servers] }})
 
 		print "message: "+str(serverList)
 
@@ -238,7 +238,7 @@ class Mediator:
 			try:
 				if self.servers[server][1]:
 					print "I am going to send a message to the server "+str(server)
-					send(self.servers[server][1], json.dumps(serverList))
+					send(self.servers[server][1], serverList)
 			except Exception,e:
 				print e, 'check this exception to see if you can remove the server from the servers list'
 		self.updateReplicas()
