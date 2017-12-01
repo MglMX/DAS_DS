@@ -14,7 +14,9 @@ class SendReportState():
 			self.server.state = InitialState(self.server)
 		else:
 			try:
-				send(self.server.med_sock, str(self.server.players_number))
+				report = {"type":"Report", "content":{"connectedPlayers":self.server.players_number}}
+				send(self.server.med_sock, report)
+				#send(self.server.med_sock, str(self.server.players_number))
 				self.server.state = HandleClientsState(self.server)
 			except Exception, e: #Mediator is inactive
 				print 'Error:',e
@@ -90,8 +92,10 @@ class Server:
 				try: #Try connecting to each mediator in the same order as it is in utils.py
 					print 'Trying the mediator at ('+ip+','+str(port)+')'
 					s.connect((ip, port))
-					s.send('1')
-					send(s, self.local_ip+"|"+str(self.local_port))
+					nodeType = {"type":"InitialConnection","content":{"nodeType":1}} #JSon indicating that it is a server trying to connect
+					send(s, json.dumps(nodeType))
+					serverInfo = {"type":"ServerInfo","content":{"ip":self.local_ip,"port":self.local_port}} #JSon with the info of the server
+					send(s, json.dumps(serverInfo))
 
 					self.med_sock = s
 					break

@@ -133,37 +133,47 @@ class Mediator:
 		conn.settimeout(1) #Just to avoid deadlock waiting for it to send or recv
 
 		try:
-			who = conn.recv(1)
-			who = int(who)
+			message = receive(conn)
+			if message["type"]=="InitialConnection":				
+				who = int(message["content"]["nodeType"])
+				
+			else:
+				print "I was expecting IniticalConnection as type in message and got " + message[type]
+			
 		except:
 			return
-
+		
 		if who == SERVERCODE: #TODO - Security - Authenticate real servers
 			#In case it is a server
+			print "It is a server trying to connect"
 			self.handleNewServer(conn,addr)
 		elif who == CLIENTCODE:
 			#In case it is a client
+			print "It is a client trying to connect"
 			self.handleNewClient(conn,addr)
 		elif who == REPLICACODE:
 			#In case it is the replica
+			print "It is a mediator trying to connect"
 			self.replicaList.append(conn)
 
 	def handleNewServer(self, conn, addr):
 		''' Add the new server to the list of servers'''
 		print 'New server is trying to join: ', addr
 		
-		publish = receive(conn) #Obtain the message with the ip and port of the server trying to connect
-		if publish == 'disconnect' or publish == None: #FIXME
+		message = receive(conn) #Obtain the message with the ip and port of the server trying to connect
+		if message["type"] == 'Error' or message == None: #FIXME
 			print 'Error handling new server'
 			return
-
-		publish = publish.split('|')
-		publish = (publish[0], int(publish[1])) #(ip,port)
-		if publish in self.servers:
-			self.servers[publish] = (0, conn) #TODO - receive port where server will be operational for clients
+		
+		if message["type"] == 'ServerInfo':
+			server  = (message["content"]["ip"],message["content"]["port"]) #(ip,port)
+		
+		if server in self.servers: 
+			#Servers are trying to connect to the replica. The socket is added to servers dictionary
+			self.servers[server] = (0, conn) #TODO - receive port where server will be operational for clients
 		else:
-			print 'New server is running at', publish
-			self.servers[publish] = (0, conn) #TODO - receive port where server will be operational for clients
+			print 'New server is running at', server
+			self.servers[server] = (0, conn) #TODO - receive port where server will be operational for clients
 
 		self.broadcastList()
 
@@ -176,11 +186,13 @@ class Mediator:
 			send(conn, "ERROR - Game is offline") #no servers available
 		else:
 			minimum = min([self.servers[i][0] for i in self.servers])
-			for server in self.servers:
+			for server in self.servers:				
 				#TODO - Geographical Scalability - maybe choose the one with less players and closer to the player accordingly to a formula
 				if self.servers[server][0] == minimum: 
 					try:
-						send(conn, str(server)) #This one :D
+						serverInfo = {"type":"ServerInfo","content":{"ip":str(server[0]),"port":int(server[1])}}
+						send(conn, json.dumps(serverInfo)) #This one :D
+						print "Information of the server sent to the client"
 					except:
 						pass
 					break
@@ -190,14 +202,17 @@ class Mediator:
 		servers = self.servers.keys() #List of servers
 		for server in servers:
 			if self.servers[server][1] in can_recv: #If server sent a message
-				message = receive(self.servers[server][1])
-				if message == 'disconnect':
+				message = receive(self.servers[server][1])				
+				if message == 'disconnect': #FIXME when would the mediator receive disconnect? change for message["type"]=="Disconnect"
 					del self.servers[server] #Disconnect a server if its offline
 					self.broadcastList()
-				try:
-					message = int(message)
-					self.servers[server] = (message, self.servers[server][1]) #Update number of players
-					print server,'has',message,'connected players'
+				try: #FIXME Shouldn't this try be before the receive?
+					if message["type"]=="Report":						
+						connectedPlayers = int(message["content"]["connectedPlayers"])
+						self.servers[server] = (connectedPlayers, self.servers[server][1]) #Update number of players
+						print server,'has',connectedPlayers,'connected players'
+					else:
+						print "Expecting type == Report but got " + message["type"]
 				except:
 					pass
 		self.updateReplicas()

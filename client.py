@@ -18,18 +18,22 @@ class Client:
 		print 'Successfully connected. Gonna exit now tough'
 
 	def getServer(self):
+		print "Inside getServer"
 		errors = 0
 		while 1:
-			for mediator in range(len(self.med_list)):
+			for mediator in range(len(self.med_list)): #Trying all the possible mediators.
 				s = socket(AF_INET, SOCK_STREAM)
 				s.settimeout(0.5)
 				ip = self.med_list[mediator][0]
 				port = self.med_list[mediator][1]
 				try:
 					s.connect((ip, port)) #Connect to mediator
-					s.send('0')										#Send message to say I am a client
-					msg = receive(s)
-					break								#Receive server ip and port
+					nodeType = {"type":"InitialConnection","content":{"nodeType":0}} #JSon indicating that it is a cliet trying to connect
+					send(s, json.dumps(nodeType))
+					print "I indicated the mediator that I am a client"
+					message = receive(s)								#Receive server ip and port
+					print "Received server to connect to"
+					break								
 				except Exception, e:
 					print 'Mediator number %s is not active: %s' % (mediator,e)
 			else:
@@ -42,11 +46,15 @@ class Client:
 					time.sleep(1)
 					continue
 			break
-		if "ERROR" in msg:
-			print msg
+		if message["type"]=="Error":
+			print "The was an error while getting the server Info"
+			print message
 			sys.exit()
-		else:
-			return self.getAddress(msg)
+		elif message["type"]=="ServerInfo":
+			print "Getting server info"
+			server = (message["content"]["ip"],message["content"]["port"])
+			return server
+			
 	def getAddress(self, initial_msg):
 		return eval(initial_msg) #(ip,port)
 
@@ -78,8 +86,8 @@ PORT = 6969
 s = Client(MED_LIST)
 gui = Gui()
 board = Board()
-s.receiveBoard(board)
-s.receivePlayerPosition(board)
+#s.receiveBoard(board)
+#s.receivePlayerPosition(board)
 drag1 = Dragon(5,6)
 board.insertObject(drag1)
 drag2 = Dragon(9,6)
