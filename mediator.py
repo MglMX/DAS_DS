@@ -76,11 +76,11 @@ class Mediator:
 				command = receive(med_sock) #FIXME timeout --> active mediator crashed #
 				print "Received command from mediator:",command
 
-				if command == 'disconnect':
+				if command["type"] == 'Error':
 					med_sock.close()
 					return
 			except Exception, e:
-				print "Exception receiving command"
+				print "Exception receiving command",e
 				#print "Exception receiving command in mediator: %s"(e)
 				med_sock.close()
 				return
@@ -89,14 +89,16 @@ class Mediator:
 	def handleCommand(self, command):
 		''' For now this only updates the server list. Later we need to update the queue to [FIXME] '''
 		print "Handle command"
-		print "Command: "+command
+		print "Command: ",command
 		#FIXME JSON WAY TO DO IT
-		msg = eval(command)
-		self.servers = msg[0]
-		self.queue.setQueue(msg[1])
-		for server in self.servers:
-			self.servers[server] = (self.servers[server][0],None)
-		print 'Updated list of servers:',self.servers
+		if command["type"] == "ServerList":
+			for server in self.servers:
+				self.servers[server] = (command["content"][str(server)][0],None)
+			print 'Updated list of servers:',self.servers
+		elif command["type"] == "PriorityQueue":
+			self.queue.setQueue(command["content"])
+			print 'Updated priority queue'
+
 
 	def run(self):
 		if self.replica:
@@ -210,7 +212,7 @@ class Mediator:
 		for server in servers:
 			if self.servers[server][1] in can_recv: #If server sent a message
 				message = receive(self.servers[server][1])				
-				if message == 'disconnect': #FIXME when would the mediator receive disconnect? change for message["type"]=="Disconnect"
+				if message["type"] == 'Error': #FIXME when would the mediator receive disconnect? change for message["type"]=="Disconnect"
 					del self.servers[server] #Disconnect a server if its offline
 					self.broadcastList()
 				try: #FIXME Shouldn't this try be before the receive?
@@ -242,17 +244,24 @@ class Mediator:
 	def updateReplicas(self):
 		#Update replicas
 		toRemove = []
+		print 'Im in updateReplicas',self.replicaList
 		for replica in self.replicaList:
-			print "Sending server list to replica"
+			print "Sending server list and queue to replica"
 			try:
-				message = {}
+				serverList = {}
 				for i in self.servers:
-					message[i] = (self.servers[i][0],) #Remove the sockets from the self.servers dictionary and send it
-					print "To replica. message[",i,"]: ",message[i]
-				message = str((message, self.queue.getQueue()))
-				print "To replica. message:",message
-				send(replica, message)
-			except:
+					serverList[str(i)] = (self.servers[i][0],) #Remove the sockets from the self.servers dictionary and send it
+					print "To replica. message[",i,"]: ",serverList[str(i)]
+				message1 = json.dumps({"type": "ServerList","content": serverList}) #Send server list
+				message2 = json.dumps({"type": "PriorityQueue", "content": self.queue.getQueue()}) # send priority queue
+
+				print "To replica. message serverList:",message1
+				print "To replica. message queue:",message2
+				send(replica, message1)
+				send(replica, message2)
+				print "Updated replica"
+			except Exception,e:
+				print e
 				toRemove.append(replica)
 
 		#Remove replicas that are not answering anymore
