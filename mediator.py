@@ -190,7 +190,8 @@ class Mediator:
 
 		#Search for a good server for him
 		if len(self.servers) == 0:
-			send(conn, "ERROR - Game is offline") #no servers available
+			errorInfo = {"type": "Error", "content": {"info": "The server is offline"}}
+			send(conn, json.dumps(errorInfo)) #no servers available
 		else:
 			minimum = min([self.servers[i][0] for i in self.servers])
 			for server in self.servers:				
