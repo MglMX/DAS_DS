@@ -229,14 +229,14 @@ class Mediator:
 		print "Ready to broadcast"
 		# Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket)
 		serverList = {"type": "ServerList","content": {"servers":[i for i in self.servers] }}
-		message = str([i for i in self.servers])
+
 		print "message: "+str(serverList)
 
 		for server in self.servers:
 			try:
 				if self.servers[server][1]:
 					print "I am going to send a message to the server "+str(server)
-					send(self.servers[server][1], message)
+					send(self.servers[server][1], json.dumps(serverList))
 			except Exception,e:
 				print e, 'check this exception to see if you can remove the server from the servers list'
 		self.updateReplicas()
