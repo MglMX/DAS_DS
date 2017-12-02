@@ -7,6 +7,13 @@ from gameLog import Logger
 log = Logger(1, [])
 #log.println(msg, priority, keywords)
 
+class Timer:
+	''' To check the correct time (as the mediator see's it) '''
+	def __init__(self):
+		self.timeDiff = 0 #Difference of time between server and mediator
+	def getTime(self):
+		return time.time()+self.timeDiff
+
 class SendReportState():
 	def __init__(self, server):
 		'''
@@ -35,11 +42,14 @@ class HandleClientsState():
 		self.stateName = "Handle Clients State"
 		self.TIME_BETWEEN_REPORT = 5 #X.   Each X seconds the server should send the mediator a report with the players that are connected
 	def run(self):
-		begin = time.time()
+		begin = self.server.timer.getTime()
 		while 1:
-			current = time.time()
+			current = self.server.timer.getTime()
 			if current-begin > self.TIME_BETWEEN_REPORT: #Check if the time to handle clients has passed so the state should be changed to sendReport
 				break
+			elif current > self.server.timeToSynch:
+				self.server.state = SynchronizeTimeState(self.server)
+				return
 			readable, writeable, error = select.select([self.server.sock,self.server.med_sock], [], [], (self.TIME_BETWEEN_REPORT+begin-current))
 			
 			if self.server.sock in readable:
@@ -67,6 +77,41 @@ class HandleClientsState():
 
 		self.server.state = SendReportState(self.server)
 
+class SynchronizeTimeState():
+	''' All states have function "run" '''
+	def __init__(self, server):
+		self.server = server
+		self.stateName = "Synchronization state"
+	def run(self):
+		''' Run synchronization algorithm:
+				Send message to mediator
+				Receive T1 from mediator (T1 is the time.time() at the mediator when the mediator sends this message)
+				Let x be the time that it took to send and receive that answer. x = Tsend + Treceive. Lets assume Tsend = Treceive
+				Let T be the time the server should have. T = T1 + Treceive =~ T1 + (Tsend + Treceive) / 2 = T1 + x / 2
+				For precision, repeat this process a few times and calculate an average for x/2.
+			TODO: the last step (precision) '''
+		try:
+			msg = json.dumps({"type":"Synch", "content":"Give me your time"})
+
+			T0 = time.time()
+			send(self.server.med_sock, msg)
+			T1 = receive(self.server.med_sock)
+			T2 = time.time()
+			x = T2 - T0
+
+			assert T1["type"] == "Synch"
+			T1 = float(T1["content"])
+
+			print '\n\nx: ' + str(x) + ' | TIME AT MEDIATOR: ' + str(T1 + x/2) + '\n\n' #FIXME remove this print
+
+			self.server.timer.timeDiff = T2 - (T1 + x/2)
+			self.server.timeToSynch = self.server.timer.getTime()+200 #FIXME each 200 seconds the server synchronizes
+			self.server.state = HandleClientsState(self.server)
+
+		except Exception, e:
+			log.println("Error in SynchronizeTimeState: " + str(e), 2, ['error', 'synch'])
+			self.server.state = InitialState(self.server)
+
 		
 class InitialState():
 	''' All states have function "run"	'''
@@ -75,7 +120,14 @@ class InitialState():
 		self.stateName = "Initial State"
 	def run(self):
 		self.server.publish()
-		self.server.state = HandleClientsState(self.server)
+		self.server.state = SynchronizeTimeState(self.server)
+		try:
+			message = receive(self.server.med_sock)
+			assert message["type"] == 'ServerList'
+			self.server.neighbours = message["content"]["servers"]
+		except Exception, e:
+			log.println("Error in InitialState: " + str(e), 2, ['error', 'init'])
+
 
 class Server:
 	def __init__(self, local_port, med_list):
@@ -92,6 +144,8 @@ class Server:
 
 		self.players_number = 0
 		self.neighbours = [] #Other servers
+		self.timer = Timer()
+		self.timeToSynch = None
 
 	def findIp(self):
 		''' Find local IP address '''
@@ -110,7 +164,7 @@ class Server:
 		while 1:
 			for mediator in range(len(self.med_list)):
 				s = socket(AF_INET, SOCK_STREAM)
-				s.settimeout(0.5)
+				s.settimeout(1)
 				ip = self.med_list[mediator][0]
 				port = self.med_list[mediator][1]
 				try: #Try connecting to each mediator in the same order as it is in utils.py

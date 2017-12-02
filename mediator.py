@@ -142,7 +142,7 @@ class Mediator:
 						toRemove = replica
 						break
 				else:
-					self.handleNewReports(can_recv)
+					self.handleNewServerMsgs(can_recv)
 				if toRemove:
 					self.replicaList.remove(toRemove)
 
@@ -170,10 +170,9 @@ class Mediator:
 			message = receive(conn)
 			if message["type"]=="InitialConnection":				
 				who = int(message["content"]["nodeType"])
-				
 			else:
 				log.println("I was expecting IniticalConnection as type in message and got " + message["type"], 2, ['error','connection'])
-			
+				return
 		except:
 			return
 		
@@ -232,7 +231,7 @@ class Mediator:
 						pass
 					break
 
-	def handleNewReports(self, can_recv):
+	def handleNewServerMsgs(self, can_recv):
 		''' '''
 		servers = self.servers.keys() #List of servers
 		for server in servers:
@@ -246,10 +245,13 @@ class Mediator:
 						connectedPlayers = int(message["content"]["connectedPlayers"])
 						self.servers[server] = (connectedPlayers, self.servers[server][1], self.time) #Update number of players
 						log.println(str(server)+' has '+str(connectedPlayers)+' connected players', 2, ['update', 'report'])
+					elif message["type"] == "Synch":
+						T1 = json.dumps({"type": "Synch", "content": time.time()})
+						send(self.servers[server][1],T1)
 					else:
-						log.println("Expecting type == Report but got " + message["type"], 1, ['error', 'report'])
-				except:
-					pass
+						log.println("Expecting type == Report or Synch but got " + message["type"], 1, ['error', 'report'])
+				except Exception, e:
+					log.println("Error at handleNewServerMsgs: " + str(e), 2, ['error'])
 		self.updateReplicas()
 	def broadcastList(self):
 		''' Send an up-to-date list of servers to everyone '''
