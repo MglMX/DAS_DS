@@ -137,13 +137,12 @@ class Server:
 			break
 
 PORT = 6971
-'''
-if len(sys.argv)>1:
-	PORT=int(sys.argv[1]) #optional port passing in case there are more than one server in the network.
-'''
 
-print "Indicate port. Ex: 6971"
-PORT = int(raw_input("port: "))
+try:
+	PORT=int(sys.argv[1]) #optional port passing in case there are more than one server in the network.
+except:
+	print "Indicate port. Ex: 6971"
+	PORT = int(raw_input("port: "))
 
 s = Server(PORT, MED_LIST)
 
