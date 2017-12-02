@@ -1,78 +1,72 @@
-class Unit(object):
-
-    def _init_(self, x, y, maxHitPoints, hitPoints, attackPoints, unitID):
-
-	self.x = x
-	self.y = y
-	self.maxHitPoints = maxHitPoints
-	self.hitPoints = hitPoints
-	self.attackPoints = attackPoints
-	self.unitID = unitID
-	self.running = false
+class Unit:
+    def __init__(self, x, y, maxHitPoints, hitPoints, attackPoints, unitID):
+		self.x = x
+		self.y = y
+		self.maxHitPoints = maxHitPoints
+		self.hitPoints = hitPoints
+		self.attackPoints = attackPoints
+		self.unitID = unitID
+		self.running = false
 
     def adjustHitPoints(modifier):
+		if(self.hitPoints <= 0):
+			return
 
-	if(self.hitPoints <= 0):
-		return
+		self.hitPoints += modifier
 
-	hitPoints += modifier
+		if(self.hitPoints > self.maxHitPoints):
+			self.hitPoints = maxHitPoints
 
-	if(self.hitPoints > self.maxHitPoints):
-		hitPoints = maxHitPoints
+		if(self.hitPoints <= 0):
+			self.removeUint(x, y)
 
-	if(self.hitPoints <= 0):
-		removeUint(x, y)
-
-  
+	  
     def dealDamage(x, y, damage):
-        
+        ''' TODO '''
+        pass
 
     def healDamage(x, y, healed): 	
-
+    	''' TODO '''
+    	pass
 
     def getMaxHitPoints():
-
-	return self.maxHitPoints
-
+    	return self.maxHitPoints
 
     def getUnitID():
-	return self.unitID
+		return self.unitID
 
 
     def setPosition(x, y):
-	self.x = x
-	self.y = y
+		self.x = x
+		self.y = y
 
 
     def getX():
-	return self.x
+		return self.x
 
     def getY():
-	return self.y
+		return self.y
 
 
     def getHitPoints():
-	return self.hitPoints
+		return self.hitPoints
 
 
     def getAttackPoints():
-	return self.attackPoints
+		return self.attackPoints
 
 
     def spawn(x, y):
-
+    	''' TODO '''
+    	pass
 
     def getType(x, y):
-
-
-    def getUnit(x, y):
-
+    	''' Abstract function '''
+    	pass
 
     def removeUnit(x, y):
-
-
-    def moveUnit(x, y):
-
+    	''' not sure what TODO here '''
+    	pass
 
 
 
