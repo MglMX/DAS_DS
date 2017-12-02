@@ -2,6 +2,10 @@ from socket import *
 from utils  import *
 import sys, time
 import select
+from gameLog import Logger
+
+log = Logger(1, [])
+#log.println(msg, priority, keywords)
 
 class SendReportState():
 	def __init__(self, server):
@@ -12,7 +16,7 @@ class SendReportState():
 		self.stateName = "Send Report State"
 	def run(self):
 		if self.server.med_sock is None:
-			print 'Error. No mediator socket. Should publish again'
+			log.println('Error. No mediator socket. Should publish again', 3, ['error'])
 			self.server.state = InitialState(self.server)
 		else:
 			try:
@@ -20,7 +24,7 @@ class SendReportState():
 				send(self.server.med_sock, report)
 				self.server.state = HandleClientsState(self.server)
 			except Exception, e: #Mediator is inactive
-				print 'Error:',e
+				log.println('Error: '+e, 1, ['error'])
 				self.server.state = InitialState(self.server) #Try to contact other mediator
 			
 
@@ -44,10 +48,10 @@ class HandleClientsState():
 					conn.settimeout(1) #FIXME set timeout properly
 					succMessage = json.dumps({"type": "SuccesfullConnection", "content": {"info":"Connected succesfully to the server"}})#FIXME Provavly we can directly send the board here
 					send(conn, succMessage)
-					print 'Player connected'
+					log.println('Player connected', 1, ['player'])
 					self.server.players_number += 1 #TODO create list of players
 				except Exception,e:
-					print 'Error receiving client:',e
+					log.println('Error receiving client: '+e, 1, ['error'])
 
 			elif self.server.med_sock in readable:
 				''' Receive list of servers.
@@ -55,7 +59,7 @@ class HandleClientsState():
 				message = receive(self.server.med_sock)
 				if message["type"] == "ServerList":
 					self.server.neighbours = message["content"]["servers"]
-					print 'Server neighbour list updated:',self.server.neighbours
+					log.println('Server neighbour list updated: '+str(self.server.neighbours), 1, ['update'])
 				elif message["type"] == "Error":
 					self.server.med_sock = None
 					self.server.state = InitialState(self.server) #Seek for another mediator
@@ -80,7 +84,7 @@ class Server:
 		self.med_list = med_list
 		self.sock = socket(AF_INET, SOCK_STREAM)
 
-		print 'Binding to ('+self.local_ip+' , ' + str(self.local_port)+')'
+		log.println('Binding to ('+self.local_ip+' , ' + str(self.local_port)+')',3,['init'])
 		self.sock.bind((self.local_ip, local_port))
 		self.sock.listen(50)
 		self.med_sock = None
@@ -110,7 +114,7 @@ class Server:
 				ip = self.med_list[mediator][0]
 				port = self.med_list[mediator][1]
 				try: #Try connecting to each mediator in the same order as it is in utils.py
-					print 'Trying the mediator at ('+ip+','+str(port)+')'
+					log.println('Trying the mediator at ('+ip+','+str(port)+')',1,['publish'])
 					s.connect((ip, port))
 					nodeType = json.dumps({"type":"InitialConnection","content":{"nodeType":1}}) #JSon indicating that it is a server trying to connect
 					send(s, nodeType)
@@ -120,11 +124,11 @@ class Server:
 					self.med_sock = s
 					break
 				except Exception,e:
-					print 'Mediator number %s is not active: %s' % (mediator,e)
+					log.println('Mediator number %s is not active: %s' % (mediator,e), 1, ['publish'])
 					
 			else:
 				time.sleep(1)
-				print 'There is no active mediator...'
+				log.println('There is no active mediator...', 3, ['publish'])
 				errors += 1
 				if errors == 3: #Try three times before quitting [FIXME number]
 					sys.exit()
@@ -138,10 +142,11 @@ if len(sys.argv)>1:
 	PORT=int(sys.argv[1]) #optional port passing in case there are more than one server in the network.
 '''
 
-PORT = int(raw_input("Indicate port. Ex: 6971"))
+print "Indicate port. Ex: 6971"
+PORT = int(raw_input("port: "))
 
 s = Server(PORT, MED_LIST)
 
 while 1:
-	print s.state.stateName #Debug
+	log.println(s.state.stateName,1,'state') #Debug
 	s.run()
