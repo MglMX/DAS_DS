@@ -1,6 +1,6 @@
 from socket import *
 from utils import *
-import select,sys
+import select,sys, time
 from gameLog import Logger
 
 log = Logger(1, [])
@@ -45,7 +45,7 @@ class Mediator:
 		if not replica:
 			self.initMasterSocket()
 
-		#Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket)
+		#Servers = dictionary with keys = (ip,port) and values = tuple(playersConnected, socket, lastTimeItSentAReport)
 		self.servers = {}
 		self.queue = Queue() #priority queue
 		#TODO SYNCHRONIZE STUFF
@@ -53,6 +53,8 @@ class Mediator:
 		#Replica stuff
 		self.replica = replica
 		self.replicaList = []
+		self.time = time.time()
+		self.checkIdle = self.time+5
 
 	def initMasterSocket(self):
 		log.println('Opening connections on ('+self.ip+','+str(self.port)+')', 3, ['init'])
@@ -75,6 +77,7 @@ class Mediator:
 			return
 
 		while 1:
+			self.time = time.time()
 			try:
 				command = receive(med_sock) #FIXME timeout --> active mediator crashed #
 				log.println("Received command from mediator: " + str(command), 2, ['update'])
@@ -95,7 +98,7 @@ class Mediator:
 		#FIXME JSON WAY TO DO IT
 		if command["type"] == "ServerList":
 			for server in self.servers:
-				self.servers[server] = (command["content"][str(server)][0],None)
+				self.servers[server] = (command["content"][str(server)][0],None,self.time)
 			log.println('Updated list of servers: '+str(self.servers), 3, ['update'])
 		elif command["type"] == "PriorityQueue":
 			self.queue.setQueue(command["content"])
@@ -116,12 +119,18 @@ class Mediator:
 			self.initMasterSocket()
 
 		while 1:
+
+			self.time = time.time() #Update time
+			if self.time > self.checkIdle:
+				self.checkIdle = self.time+5
+				self.checkIdleServers()
+
 			toCheck = [self.servers[i][1] for i in self.servers if self.servers[i][1] ] #Servers with proper sockets
 			toCheck.append(self.master) #New connections
 			for replica in self.replicaList:
 				toCheck.append(replica) #Replicas -- If they say something its probably an EOF
 
-			can_recv, can_send, exceptions = select.select(toCheck, [], [])
+			can_recv, can_send, exceptions = select.select(toCheck, [], [], 2)
 
 			if self.master in can_recv: #Could be a new server or a new client
 				self.handleNewConnections()
@@ -136,7 +145,21 @@ class Mediator:
 					self.handleNewReports(can_recv)
 				if toRemove:
 					self.replicaList.remove(toRemove)
-				
+
+	def checkIdleServers(self):
+		''' Checks if a server didn't send a report for X seconds. If so, remove it from the server list '''
+		toRemove = None
+		for server in self.servers:
+			if self.time - self.servers[server][2] > 15: #FIXME If it passed X seconds since last report, disconnect server
+				toRemove = server
+				break
+		if toRemove:
+			self.servers.pop(toRemove)
+			log.println("Server " + str(toRemove) + " TIMEOUT", 3, ['server'])
+			self.broadcastList()
+			self.updateReplicas()
+
+
 	def handleNewConnections(self):
 		'''Distinguish if it is a server or a client trying to connect to the mediator '''
 		conn,addr = self.master.accept()
@@ -181,10 +204,10 @@ class Mediator:
 		
 		if server in self.servers: 
 			#Servers are trying to connect to the replica. The socket is added to servers dictionary
-			self.servers[server] = (0, conn) #TODO - receive port where server will be operational for clients
+			self.servers[server] = (0, conn, self.time) #TODO - receive port where server will be operational for clients
 		else:
 			log.println('New server is running at '+ str(server), 2, ['connection'])
-			self.servers[server] = (0, conn) #TODO - receive port where server will be operational for clients
+			self.servers[server] = (0, conn, self.time) #TODO - receive port where server will be operational for clients
 
 		self.broadcastList()
 
@@ -218,10 +241,10 @@ class Mediator:
 				if message["type"] == 'Error': #FIXME when would the mediator receive disconnect? change for message["type"]=="Disconnect"
 					del self.servers[server] #Disconnect a server if its offline
 					self.broadcastList()
-				try: #FIXME Shouldn't this try be before the receive?
+				try: #FIXME Shouldn't this try be before the receive? No because receive doesnt throw errors in utils.py
 					if message["type"]=="Report":						
 						connectedPlayers = int(message["content"]["connectedPlayers"])
-						self.servers[server] = (connectedPlayers, self.servers[server][1]) #Update number of players
+						self.servers[server] = (connectedPlayers, self.servers[server][1], self.time) #Update number of players
 						log.println(str(server)+' has '+str(connectedPlayers)+' connected players', 2, ['update', 'report'])
 					else:
 						log.println("Expecting type == Report but got " + message["type"], 1, ['error', 'report'])
