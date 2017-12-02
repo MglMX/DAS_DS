@@ -36,7 +36,7 @@ def getMessageString(sock, MAX_SIZE=4096):
 
 def receive(sock, MAX_SIZE=4096):
 	message = getMessageString(sock,MAX_SIZE)
-	print 'Message recived: ' + message
+	print 'Message received: ' + message
 	try:
 		return json.loads(message)
 	except:

@@ -36,14 +36,31 @@ class HandleClientsState():
 			current = time.time()
 			if current-begin > self.TIME_BETWEEN_REPORT: #Check if the time to handle clients has passed so the state should be changed to sendReport
 				break
-			readable, writeable, error = select.select([self.server.sock], [], [], (self.TIME_BETWEEN_REPORT+begin-current))
+			readable, writeable, error = select.select([self.server.sock,self.server.med_sock], [], [], (self.TIME_BETWEEN_REPORT+begin-current))
+			
 			if self.server.sock in readable:
-				conn,addr = self.server.sock.accept() #conn holds the socket necessary to connect to the client
-				conn.settimeout(1) #FIXME set timeout properly
-				succMessage = json.dumps({"type": "SuccesfullConnection", "content": {"info":"Connected succesfully to the server"}})#FIXME Provavly we can directly send the board here
-				send(conn, succMessage)
-				print 'Player connected'
-				self.server.players_number += 1 #TODO create list of players
+				try:
+					conn,addr = self.server.sock.accept() #conn holds the socket necessary to connect to the client
+					conn.settimeout(1) #FIXME set timeout properly
+					succMessage = json.dumps({"type": "SuccesfullConnection", "content": {"info":"Connected succesfully to the server"}})#FIXME Provavly we can directly send the board here
+					send(conn, succMessage)
+					print 'Player connected'
+					self.server.players_number += 1 #TODO create list of players
+				except Exception,e:
+					print 'Error receiving client:',e
+
+			elif self.server.med_sock in readable:
+				''' Receive list of servers.
+					For now I think it is the only thing the mediator sends the servers '''
+				message = receive(self.server.med_sock)
+				if message["type"] == "ServerList":
+					self.server.neighbours = message["content"]["servers"]
+					print 'Server neighbour list updated:',self.server.neighbours
+				elif message["type"] == "Error":
+					self.server.med_sock = None
+					self.server.state = InitialState(self.server) #Seek for another mediator
+					return
+
 		self.server.state = SendReportState(self.server)
 
 		
@@ -70,6 +87,7 @@ class Server:
 		self.state = InitialState(self)
 
 		self.players_number = 0
+		self.neighbours = [] #Other servers
 
 	def findIp(self):
 		''' Find local IP address '''
