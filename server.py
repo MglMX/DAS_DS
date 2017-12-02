@@ -1,8 +1,11 @@
+from gameLog import Logger
+from board  import Board
 from socket import *
 from utils  import *
 import sys, time
 import select
-from gameLog import Logger
+
+from gui import Dragon, Player #FIXME
 
 log = Logger(1, [])
 #log.println(msg, priority, keywords)
@@ -41,6 +44,55 @@ class HandleClientsState():
 		self.server = server
 		self.stateName = "Handle Clients State"
 		self.TIME_BETWEEN_REPORT = 5 #X.   Each X seconds the server should send the mediator a report with the players that are connected
+	
+	def handleNewClient(self):
+		''' First, accept connection. Then, send the board and the player ID '''
+
+		#Accept connection
+		conn,addr = self.server.sock.accept() #conn holds the socket necessary to connect to the client
+		conn.settimeout(1) #FIXME set timeout properly
+
+		log.println('Player connected', 1, ['player'])
+
+		#Send board and player ID
+
+		#FIXME testing
+		if self.server.clients == []:
+			board = json.dumps({"type": "board", "content": {"ID": 3, "board": self.server.board.getBoard()}})
+		else:
+			board = json.dumps({"type": "board", "content": {"ID": 4, "board": self.server.board.getBoard()}})
+
+		send(conn, board)
+		
+		#Add player to list of clients
+		self.server.players_number += 1 #TODO create list of players
+		self.server.clients.append(conn)
+
+	def broadcastCommand(self, command):
+		''' FIXME '''
+		for client in self.server.clients:
+			try:
+				send(client, json.dumps({"type": "command", "content": command}))
+			except Exception, e:
+				log.println("Error broadcasting command: " + str(e), 2, ['error']) #FIXME remove client or whatever
+
+	def handleCommands(self, readable):
+		for client in self.server.clients:
+			if client in readable:
+				try:
+					command = receive(client)
+					assert command["type"] == "command"
+					command = command["content"]
+					if command["cmd"] == "move":
+						u_id = command["id"]
+						pos = command["where"]
+						self.server.board.movePlayer(u_id, pos) #TODO check invalid move
+						self.broadcastCommand(command) #FIXME too heavy. just for testing
+				except Exception, e:
+					#FIXME remove client from clients list
+					log.println("Error handling commands: " + str(e), 2, ['command', 'error'])
+
+
 	def run(self):
 		begin = self.server.timer.getTime()
 		while 1:
@@ -50,18 +102,17 @@ class HandleClientsState():
 			elif current > self.server.timeToSynch:
 				self.server.state = SynchronizeTimeState(self.server)
 				return
-			readable, writeable, error = select.select([self.server.sock,self.server.med_sock], [], [], (self.TIME_BETWEEN_REPORT+begin-current))
+
+			toCheck = [i for i in self.server.clients]
+			toCheck.append(self.server.sock)
+			toCheck.append(self.server.med_sock)
+			readable, writeable, error = select.select(toCheck, [], [], (self.TIME_BETWEEN_REPORT+begin-current))
 			
 			if self.server.sock in readable:
 				try:
-					conn,addr = self.server.sock.accept() #conn holds the socket necessary to connect to the client
-					conn.settimeout(1) #FIXME set timeout properly
-					succMessage = json.dumps({"type": "SuccesfullConnection", "content": {"info":"Connected succesfully to the server"}})#FIXME Provavly we can directly send the board here
-					send(conn, succMessage)
-					log.println('Player connected', 1, ['player'])
-					self.server.players_number += 1 #TODO create list of players
+					self.handleNewClient()
 				except Exception,e:
-					log.println('Error receiving client: '+e, 1, ['error'])
+					log.println('Error receiving client: '+str(e), 1, ['error'])
 
 			elif self.server.med_sock in readable:
 				''' Receive list of servers.
@@ -74,6 +125,9 @@ class HandleClientsState():
 					self.server.med_sock = None
 					self.server.state = InitialState(self.server) #Seek for another mediator
 					return
+			else:
+				#Client commands
+				self.handleCommands(readable)
 
 		self.server.state = SendReportState(self.server)
 
@@ -146,6 +200,20 @@ class Server:
 		self.neighbours = [] #Other servers
 		self.timer = Timer()
 		self.timeToSynch = None
+
+		self.board = Board()
+		#TESTING CODE
+		drag1 = Dragon(5,6, 1)
+		self.board.insertObject(drag1)
+		drag2 = Dragon(9,6, 2)
+		self.board.insertObject(drag2)
+		play1 = Player(14, 12, 3)
+		self.board.insertObject(play1)
+		play2 = Player(15, 12, 4)
+		self.board.insertObject(play2)
+		#################
+
+		self.clients = [] #FIXME - better structure for clients
 
 	def findIp(self):
 		''' Find local IP address '''

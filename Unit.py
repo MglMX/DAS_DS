@@ -7,6 +7,7 @@ class Unit:
 		self.attackPoints = attackPoints
 		self.unitID = unitID
 		self.running = false
+        self.name = 'Unit' #Dragons should be 'dragon'. Players should be 'player'
 
     def adjustHitPoints(modifier):
 		if(self.hitPoints <= 0):

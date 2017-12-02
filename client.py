@@ -5,6 +5,8 @@ from board  import Board
 from empty  import Empty
 import pygame, sys, time
 
+from threading import Thread, Semaphore #There is a thread waiting for server commands and updating the gui
+
 class Client:
 	def __init__(self, med_list):
 		self.s = None #Will hold the connection between client and server
@@ -14,8 +16,11 @@ class Client:
 
 		self.s = socket(AF_INET, SOCK_STREAM) 
 		self.s.connect((ip, port))  #Connect to server
+		self.board = Board()
+		self.lock = Semaphore()
 
-		print 'Successfully connected. Gonna exit now tough'
+		self.changed = 0 #Board has changed FIXME testing purposes mostly
+		print 'Successfully connected.'
 
 	def getServer(self):
 		print "Inside getServer"
@@ -54,56 +59,99 @@ class Client:
 			print "Getting server info"
 			server = (message["content"]["ip"],message["content"]["port"])
 			return server
+
+	def serverConnectionDaemon(self):
+		try:
+			while 1:
+				command = receive(self.s)
+				assert command["type"] == "command"
+				command = command["content"]
+				self.lock.acquire()
+				if command["cmd"] == "move":
+					u_id = command["id"]
+					pos = command["where"]
+
+					print 'Moving player:',u_id,'to',pos
+					self.board.movePlayer(u_id, pos)
+					self.changed = 1
+				self.lock.release()
+
+
+		except Exception,e:
+			print 'Error ready command: ' + str(e) #TODO - Try to find another server or something
 			
 	def getAddress(self, initial_msg): #unusued
 		return eval(initial_msg) #(ip,port)
 
-	def receiveBoard(self, board) :
+	def receiveBoard(self) :
 		msg = receive(self.s)
-		msg = eval(msg)
+		assert msg["type"] == "board"
+		msg = msg["content"]
+		
+		boardServer = msg["board"]
+		playerID = msg["ID"]
+		player = None
 
 		for x in range(25):
 			for y in range(25):
-				if msg[x][y][0] == 'dragon':
-					#create new dragon
-					#put it in the board
-					print 'reads Dragon from message'
-				elif msg[x][y][0] == 'player':
-					#create player
-					#put it in the board
-					print 'reads Player from message'
+				if boardServer[x][y][0] == 'dragon':
+					self.board.insertObject(Dragon(x, y, boardServer[x][y][1]))
+				elif boardServer[x][y][0] == 'player':
+					if boardServer[x][y][1] != playerID:
+						self.board.insertObject(Player(x, y, boardServer[x][y][1]))
+					else:
+						player = Player(x, y, playerID, isUser=True)
+						self.board.insertObject(player)
+		return player
 
-	def receivePlayerPosition(self, board):
-		msg = receive(self.s) #receives ID of "your" player
-		#Point out the player 
+	def sendCommand(self, command):
+		''' FIXME - This shouldnt receive a json. Or should it? '''
+		try:
+			send(self.s, command)
+		except Exception, e:
+			print 'Error sending command:',e
 
+	def runGame(self):
+		''' Careful with accessing shared resources. Use locks. '''
 
-IP = 'localhost'
+		#Setup daemon to continuosly run commands
+		t = Thread(target=self.serverConnectionDaemon)
+		t.setDaemon(True)
 
-PORT = 6969
+		gui = Gui()
+		player = s.receiveBoard()
+
+		self.changed = 1
+		t.start() #Start daemon after receiving the full board
+
+		#drag1 = Dragon(5,6)
+		#board.insertObject(drag1)
+		#drag2 = Dragon(9,6)
+		#board.insertObject(drag2)
+		#play1 = Player(14, 12)
+		#board.insertObject(play1)
+		#play2 = Player(15, 12)
+		#board.insertObject(play2)
+
+		
+		while 1:
+			self.lock.acquire()
+			if self.changed:
+				self.changed = 0
+				gui.screen.fill((0,0,0)) #Clear screen
+				gui.drawLines()			 #Draw grid
+				gui.drawUnits(self.board.board)
+			event = gui.handleEvents(player, self.board.board)	
+			if event != 0:
+				self.changed = 1
+			self.lock.release()
+			
+			if event in (1,2,3,4):   #Left
+				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": player.id, "where": (player.x, player.y)}}))
+
+			#Switch case event for movement
+			pygame.display.flip()
 
 
 s = Client(MED_LIST)
-gui = Gui()
-board = Board()
-#s.receiveBoard(board)
-#s.receivePlayerPosition(board)
-drag1 = Dragon(5,6)
-board.insertObject(drag1)
-drag2 = Dragon(9,6)
-board.insertObject(drag2)
-play1 = Player(14, 12)
-board.insertObject(play1)
-play2 = Player(15, 12)
-board.insertObject(play2)
-
-changed = 1
-while 1:
-	if changed:
-		gui.screen.fill((0,0,0))
-		changed = 0
-		gui.drawLines()
-		gui.drawUnits(board.board)
-	changed = gui.handleEvents(play1, drag1, board.board)	
-	pygame.display.flip()
-
+s.runGame()

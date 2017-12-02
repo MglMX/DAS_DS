@@ -21,7 +21,7 @@ class Gui:
 					pygame.draw.rect(self.screen, (255,0,0), (x*self.scale[0],y*self.scale[1], self.scale[0], self.scale[1]))
 				elif unitBoard[x][y].name == 'player':
 					pygame.draw.rect(self.screen, (0,0,255), (x*self.scale[0],y*self.scale[1], self.scale[0],self.scale[1]))
-	def handleEvents(self, play, drag, board):
+	def handleEvents(self, play, board):
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				pygame.quit()
@@ -30,31 +30,31 @@ class Gui:
 				if event.key == 276:
 					if 0 < play.x and board[play.x-1][play.y].name == 'empty':
 						play.x = play.x - 1
-						board[play.x][play.y] = play
-						board[play.x+1][play.y] = Empty(play.x+1,play.y)
+						#board[play.x][play.y] = play
+						#board[play.x+1][play.y] = Empty(play.x+1,play.y)
 						print 'left', play.x
 						return 1
 				elif event.key == 273:
 					if 0 < play.y and board[play.x][play.y-1].name == 'empty':
 						play.y = play.y - 1
-						board[play.x][play.y] = play
-						board[play.x][play.y+1] = Empty(play.x,play.y+1)
+						#board[play.x][play.y] = play
+						#board[play.x][play.y+1] = Empty(play.x,play.y+1)
 						print 'up', play.y
-						return 1	
+						return 2	
 				elif event.key == 275:
 					if 24 > play.x  and board[play.x+1][play.y].name == 'empty':
 						play.x = play.x + 1
-						board[play.x][play.y] = play
-						board[play.x-1][play.y] = Empty(play.x-1,play.y)
+						#board[play.x][play.y] = play
+						#board[play.x-1][play.y] = Empty(play.x-1,play.y)
 						print 'right', play.x
-						return 1
+						return 3
 				elif event.key == 274:
 					if 24 > play.y and board[play.x][play.y+1].name == 'empty':
 						play.y = play.y + 1
-						board[play.x][play.y] = play
-						board[play.x][play.y-1] = Empty(play.x,play.y-1)
+						#board[play.x][play.y] = play
+						#board[play.x][play.y-1] = Empty(play.x,play.y-1)
 						print 'down', play.y
-						return 1	
+						return 4	
 				elif event.key == 32:
 					print 'fire'
 				else:
@@ -71,6 +71,7 @@ class Gui:
 				elif board[x][y].name == 'player' and abs(play.x-x) + abs(play.y-y) < 3:
 					#heal
 					print 'heal player'
+		return 0
 
 
 class Unit:
@@ -79,16 +80,19 @@ class Unit:
 		self.y = y
 
 class Dragon:
-	def __init__(self, x, y):
+	def __init__(self, x, y, u_id):
 		self.name = 'dragon'
+		self.id = u_id
 		self.x = x
 		self.y = y
 
 class Player:
-	def __init__(self, x, y):
+	def __init__(self, x, y, u_id, isUser=False):
 		self.name = 'player'
+		self.id = u_id
 		self.x = x
 		self.y = y
+		self.isUser = isUser
 
 
 
