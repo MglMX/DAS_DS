@@ -1,14 +1,49 @@
 from gameLog import Logger
 from board  import Board
+from empty  import Empty
 from socket import *
 from utils  import *
 import sys, time
-import select
+import select, random
 
 from gui import Dragon, Player #FIXME
 
 log = Logger(1, [])
 #log.println(msg, priority, keywords)
+
+class ClientConn:
+	def __init__(self, conn, server):
+		''' Responsible for managing a client.
+			Creates a player in the board.
+			Has attributes like the player id, the connecting socket, the last time it sent a report, etc '''
+
+		self.server = server
+		self.conn = conn
+		self.id = self.server.curr_id
+		self.server.curr_id += 1
+		self.player = self.spawnPlayer()
+		self.lastTimeReport = self.server.timer.getTime()
+
+	def spawnPlayer(self):
+		''' Spawn player whereven it can. FIXME: concurrency problems  '''
+		while 1:
+			x = random.randint(0,24)
+			y = random.randint(0,24)
+			if self.server.board.board[x][y].name == 'empty':
+				break
+		player = Player(x, y, self.id)
+		self.server.board.insertObject(player)
+		return player
+
+	def removePlayer(self):
+		''' Despawn player and remove it from clients list. TODO: despawn. FIXME: concurrency problems '''
+		self.server.board.board[self.player.x][self.player.y] = Empty(self.player.x, self.player.y)
+		self.server.clients.remove(self)
+		self.server.players_number -= 1
+
+	def checkIdle(self, curr_time):
+		return curr_time-self.lastTimeReport > 15 #AFK X seconds = disconnnect. FIXME
+
 
 class Timer:
 	''' To check the correct time (as the mediator see's it) '''
@@ -25,6 +60,16 @@ class SendReportState():
 		self.server = server
 		self.stateName = "Send Report State"
 	def run(self):
+		#First, check if any clients are idle and remove them if needed.
+		toRemove = []
+		curr_time = self.server.timer.getTime()
+		for client in self.server.clients:
+			if client.checkIdle(curr_time):
+				toRemove.append(client)
+		for client in toRemove:
+			client.removePlayer()
+
+		#Then send updated list of clients to mediator
 		if self.server.med_sock is None:
 			log.println('Error. No mediator socket. Should publish again', 3, ['error'])
 			self.server.state = InitialState(self.server)
@@ -56,41 +101,46 @@ class HandleClientsState():
 
 		#Send board and player ID
 
-		#FIXME testing
-		if self.server.clients == []:
-			board = json.dumps({"type": "board", "content": {"ID": 3, "board": self.server.board.getBoard()}})
-		else:
-			board = json.dumps({"type": "board", "content": {"ID": 4, "board": self.server.board.getBoard()}})
-
+		client = ClientConn(conn, self.server)
+		board = json.dumps({"type": "board", "content": {"ID": client.id, "board": self.server.board.getBoard()}})
 		send(conn, board)
 		
 		#Add player to list of clients
 		self.server.players_number += 1 #TODO create list of players
-		self.server.clients.append(conn)
+		self.server.clients.append(client)
 
 	def broadcastCommand(self, command):
 		''' FIXME '''
+		toRemove = []
 		for client in self.server.clients:
 			try:
-				send(client, json.dumps({"type": "command", "content": command}))
+				send(client.conn, json.dumps({"type": "command", "content": command}))
 			except Exception, e:
-				log.println("Error broadcasting command: " + str(e), 2, ['error']) #FIXME remove client or whatever
+				log.println("Error broadcasting command: " + str(e), 2, ['error'])
+				toRemove.append(client)
+		for client in toRemove:
+			client.removePlayer()
+
 
 	def handleCommands(self, readable):
+		toRemove = []
 		for client in self.server.clients:
-			if client in readable:
+			if client.conn in readable:
 				try:
-					command = receive(client)
+					command = receive(client.conn)
 					assert command["type"] == "command"
 					command = command["content"]
 					if command["cmd"] == "move":
 						u_id = command["id"]
 						pos = command["where"]
-						self.server.board.movePlayer(u_id, pos) #TODO check invalid move
-						self.broadcastCommand(command) #FIXME too heavy. just for testing
+						if self.server.board.board[pos[0]][pos[1]].name == 'empty':
+							self.server.board.movePlayer(u_id, pos) #TODO check invalid move
+							self.broadcastCommand(command) #FIXME too heavy. just for testing
 				except Exception, e:
-					#FIXME remove client from clients list
 					log.println("Error handling commands: " + str(e), 2, ['command', 'error'])
+					toRemove.append(client)
+		for client in toRemove:
+			client.removePlayer()
 
 
 	def run(self):
@@ -103,7 +153,7 @@ class HandleClientsState():
 				self.server.state = SynchronizeTimeState(self.server)
 				return
 
-			toCheck = [i for i in self.server.clients]
+			toCheck = [i.conn for i in self.server.clients]
 			toCheck.append(self.server.sock)
 			toCheck.append(self.server.med_sock)
 			readable, writeable, error = select.select(toCheck, [], [], (self.TIME_BETWEEN_REPORT+begin-current))
@@ -207,13 +257,10 @@ class Server:
 		self.board.insertObject(drag1)
 		drag2 = Dragon(9,6, 2)
 		self.board.insertObject(drag2)
-		play1 = Player(14, 12, 3)
-		self.board.insertObject(play1)
-		play2 = Player(15, 12, 4)
-		self.board.insertObject(play2)
+		self.curr_id = 3 #Next ID to assign
 		#################
 
-		self.clients = [] #FIXME - better structure for clients
+		self.clients = [] #FIXME - better structure for clients maybe
 
 	def findIp(self):
 		''' Find local IP address '''

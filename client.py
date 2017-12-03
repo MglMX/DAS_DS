@@ -79,9 +79,6 @@ class Client:
 
 		except Exception,e:
 			print 'Error ready command: ' + str(e) #TODO - Try to find another server or something
-			
-	def getAddress(self, initial_msg): #unusued
-		return eval(initial_msg) #(ip,port)
 
 	def receiveBoard(self) :
 		msg = receive(self.s)
