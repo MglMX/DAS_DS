@@ -176,7 +176,7 @@ class Mediator:
 		except:
 			return
 		
-		if who == SERVERCODE: #TODO - Security - Authenticate real servers
+		if who == SERVERCODE:
 			#In case it is a server
 			log.println("It is a server trying to connect", 1, ['debug','connection'])
 			self.handleNewServer(conn,addr)
@@ -203,10 +203,10 @@ class Mediator:
 		
 		if server in self.servers: 
 			#Servers are trying to connect to the replica. The socket is added to servers dictionary
-			self.servers[server] = (0, conn, self.time) #TODO - receive port where server will be operational for clients
+			self.servers[server] = (0, conn, self.time)
 		else:
 			log.println('New server is running at '+ str(server), 2, ['connection'])
-			self.servers[server] = (0, conn, self.time) #TODO - receive port where server will be operational for clients
+			self.servers[server] = (0, conn, self.time)
 
 		self.broadcastList()
 
@@ -221,7 +221,6 @@ class Mediator:
 		else:
 			minimum = min([self.servers[i][0] for i in self.servers])
 			for server in self.servers:				
-				#TODO - Geographical Scalability - maybe choose the one with less players and closer to the player accordingly to a formula
 				if self.servers[server][0] == minimum: 
 					try:
 						serverInfo = json.dumps({"type":"ServerInfo","content":{"ip":str(server[0]),"port":int(server[1])}})

@@ -10,7 +10,7 @@ import pygame, sys, time
 from threading import Thread, Semaphore #There is a thread waiting for server commands and updating the gui
 
 class Client:
-	def __init__(self, med_list):
+	def __init__(self, med_list, reuse_id=None, reuse_gui=None):
 		self.s = None #Will hold the connection between client and server
 		self.med_list = med_list
 
@@ -18,12 +18,21 @@ class Client:
 
 		self.s = socket(AF_INET, SOCK_STREAM) 
 		self.s.connect((ip, port))  #Connect to server
+		self.s.settimeout(2) #FIXME timeout 
 		self.board = Board()
 		self.lock = Semaphore()
 
-		self.changed = 0 #Board has changed FIXME testing purposes mostly
+		if reuse_id:
+			self.id = reuse_id
+
+		self.changed = 0 #Board has changed
 		print 'Successfully connected.'
 		self.lookupAnotherServer = False
+
+		if not reuse_gui:
+			self.gui = Gui()
+		else:
+			self.gui = reuse_gui
 
 	def getServer(self):
 		print "Inside getServer"
@@ -67,6 +76,11 @@ class Client:
 		try:
 			while 1:
 				command = receive(self.s)
+
+				if command["type"] == "Error":
+					if command["content"]["info"] == "timedout":
+						continue
+
 				assert command["type"] == "command"
 				command = command["content"]
 				self.lock.acquire()
@@ -115,9 +129,9 @@ class Client:
 					self.changed = 1
 				self.lock.release()
 
-
 		except Exception,e:
 			print 'Error ready command: ' + str(e)
+			print type(e)
 			self.lock.acquire()
 			self.lookupAnotherServer = True
 			self.lock.release()
@@ -130,6 +144,8 @@ class Client:
 		
 		boardServer = msg["board"]
 		playerID = msg["ID"]
+
+		self.id = playerID
 		player = None
 
 		for x in range(25):
@@ -145,7 +161,6 @@ class Client:
 		return player
 
 	def sendCommand(self, command):
-		''' FIXME - This shouldnt receive a json. Or should it? '''
 		try:
 			send(self.s, command)
 		except Exception, e:
@@ -159,47 +174,28 @@ class Client:
 		t = Thread(target=self.serverConnectionDaemon)
 		t.setDaemon(True)
 
-		gui = Gui()
+		
 		player = s.receiveBoard()
 
 		self.changed = 1
 		t.start() #Start daemon after receiving the full board
 
-		#drag1 = Dragon(5,6)
-		#board.insertObject(drag1)
-		#drag2 = Dragon(9,6)
-		#board.insertObject(drag2)
-		#play1 = Player(14, 12)
-		#board.insertObject(play1)
-		#play2 = Player(15, 12)
-		#board.insertObject(play2)
-
-		
 		while 1:
 			self.lock.acquire()
+
 			if self.lookupAnotherServer:
-
-				self.lookupAnotherServer = False
-				#FIXME code duplication
-				self.board = Board()
-				ip, port = self.getServer() #Fetch a server from the mediator
-				self.s = socket(AF_INET, SOCK_STREAM) 
-				self.s.connect((ip, port))  #Connect to server
-				#Here we should send a message saying we would like to restore our previous state if possible
-
-				t = Thread(target=self.serverConnectionDaemon)
-				t.setDaemon(True)
-				player = s.receiveBoard()
-				self.changed = 1
-				t.start() #Start daemon after receiving the full board
-
+				self.s.close()
+				self.lock.release()
+				t.join()
+				return 0
 
 			if self.changed:
 				self.changed = 0
-				gui.screen.fill((0,0,0)) #Clear screen
-				gui.drawLines()			 #Draw grid
-				gui.drawUnits(self.board.board)
-			event = gui.handleEvents(player, self.board.board)	
+				self.gui.screen.fill((0,0,0)) #Clear screen
+				self.gui.drawLines()			 #Draw grid
+				self.gui.drawUnits(self.board.board)
+
+			event = self.gui.handleEvents(player, self.board.board)	
 			if event != 0:
 				self.changed = 1
 			
@@ -221,4 +217,7 @@ class Client:
 
 
 s = Client(MED_LIST)
-s.runGame()
+while 1:
+	status = s.runGame()
+	if s.lookupAnotherServer: #Server crashed or something
+		s = Client(MED_LIST, reuse_id=s.id, reuse_gui=s.gui)

@@ -1,8 +1,9 @@
 #Utils with communication functions that are common to all modules
 import json
+from socket import timeout
 from gameLog import Logger
 
-log = Logger(1)
+log = Logger(3, ['receive'])
 
 MED_LIST = [('localhost', 6969), ('localhost', 6970)] #FIXME at deployment --> This is the list of mediator (first element) and its replicas
 
@@ -16,7 +17,7 @@ def send(sock, message):
 		if sent == 0:
 			raise RuntimeError("socket connection broken") #When send returns 0, the other endpoint disconnected
 		totalsent = totalsent + sent
-	log.println('Sending message: '+message, 3, ['message'])
+	log.println('Sending message: '+message, 3, ['message','send'])
 
 def getMessageString(sock, MAX_SIZE=4096):
 	try:
@@ -42,13 +43,16 @@ def getMessageString(sock, MAX_SIZE=4096):
 				return '{"type":"Error","content":{"info":"Received message bigger than MAX_SIZE"}}'
 
 		return message[:-6]
-	except:
+	except timeout:
+		log.println('Error in receive. Socket timedout', 2, ['error'])
+		return '{"type":"Error","content":{"info":"timedout"}}'
+	except Exception,e:
 		log.println('Error in receive. Not enough data in buffer or invalid headers', 2, ['error'])
 		return '{"type":"Error","content":{"info":"Not enough data in buffer or invalid headers"}}'
 
 def receive(sock, MAX_SIZE=4096):
 	message = getMessageString(sock,MAX_SIZE)
-	log.println('Message received: ' + message, 3, ['message'])
+	log.println('Message received: ' + message, 3, ['message','receive'])
 	try:
 		return json.loads(message)
 	except:

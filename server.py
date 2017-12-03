@@ -37,7 +37,7 @@ class ClientConn:
 		return player
 
 	def removePlayer(self):
-		''' Despawn player and remove it from clients list. TODO: despawn. FIXME: concurrency problems '''
+		''' Despawn player and remove it from clients list. FIXME: concurrency problems '''
 		self.server.board.board[self.player.x][self.player.y] = Empty(self.player.x, self.player.y)
 		self.server.clients.remove(self)
 		self.server.players_number -= 1
@@ -130,7 +130,7 @@ class HandleClientsState():
 					log.println("Error at handleNewClient broadcasting spawn cmd", 2, ["error", "client"]) #FIXME - remove otherClient here too
 		
 		#Add player to list of clients
-		self.server.players_number += 1 #TODO create list of players
+		self.server.players_number += 1
 		self.server.clients.append(client)
 
 	def broadcastCommand(self, command):
@@ -176,7 +176,7 @@ class HandleClientsState():
 
 					client.lastTimeReport = self.server.timer.getTime() #FIXME - Too heavy. Should only call it once for all clients
 				except Exception, e:
-					log.println("Error handling commands: " + str(e), 2, ['command', 'error'])
+					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
 					toRemove.append(client)
 		for client in toRemove:
 			client.removePlayer()
