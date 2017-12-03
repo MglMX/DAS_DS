@@ -14,6 +14,6 @@ class Player(Unit):
 		self.name = 'player'
 		self.isUser = isUser
 
-	def healDamage(self, board, x, y, healed): 	
+	def healDamage(self, board, x, y): 	
 		if board.board[x][y].name == 'player':
 			board.board[x][y].adjustHitPoints(self.ap)

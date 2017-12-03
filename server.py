@@ -160,6 +160,20 @@ class HandleClientsState():
 						if self.server.board.board[pos[0]][pos[1]].name == 'empty':
 							self.server.board.movePlayer(u_id, pos) #TODO check invalid move
 							self.broadcastCommand(command) #FIXME too heavy. just for testing
+
+					elif command["cmd"] == "heal":
+						u_id = command["id"]
+						#Heal player
+						x,y = self.server.board.findObject(u_id)
+						client.player.healDamage(self.server.board, x, y)
+						self.broadcastCommand(command)
+					elif command["cmd"] == "damage":
+						u_id = command["id"]
+						#Damage dragon
+						x,y = self.server.board.findObject(u_id)
+						client.player.dealDamage(self.server.board, x, y)
+						self.broadcastCommand(command)
+
 					client.lastTimeReport = self.server.timer.getTime() #FIXME - Too heavy. Should only call it once for all clients
 				except Exception, e:
 					log.println("Error handling commands: " + str(e), 2, ['command', 'error'])

@@ -19,16 +19,20 @@ class Unit(object):
 
 
 	def adjustHitPoints(self, modifier):
-		if(self.hitPoints <= 0):
-			return
+		if(self.hp <= 0):
+			return 0
 
-		self.hitPoints += modifier
+		self.hp += modifier
+		print '\n\nDRAGON NOW HAS ',self.hp
 
-		if(self.hitPoints > self.maxHitPoints):
-			self.hitPoints = maxHitPoints
+		if(self.hp > self.maxHP):
+			self.hp = maxHP
 
-		if(self.hitPoints <= 0):
-			self.removeUint(x, y)
+		if(self.hp <= 0):
+			self.hp = 0
+			return 0
+
+		return 1
 
 	  
 	def dealDamage(self, board, x, y):

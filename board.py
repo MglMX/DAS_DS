@@ -28,3 +28,10 @@ class Board:
 					self.board[pos[0]][pos[1]].x = pos[0]
 					self.board[pos[0]][pos[1]].y = pos[1]
 					return
+
+	def findObject(self, u_id):
+		''' TODO use this function in all the places is needed '''
+		for x in range(25):
+			for y in range(25):
+				if self.board[x][y].id == u_id:
+					return x,y

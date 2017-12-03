@@ -18,9 +18,9 @@ class Gui:
 		for x in range(25):
 			for y in range(25):
 				if unitBoard[x][y].name == 'dragon':
-					pygame.draw.rect(self.screen, (255,0,0), (x*self.scale[0],y*self.scale[1], self.scale[0], self.scale[1]))
+					pygame.draw.rect(self.screen, (int(unitBoard[x][y].hp*2.55),0,0), (x*self.scale[0],y*self.scale[1], self.scale[0], self.scale[1]))
 				elif unitBoard[x][y].name == 'player':
-					pygame.draw.rect(self.screen, (0,0,255), (x*self.scale[0],y*self.scale[1], self.scale[0],self.scale[1]))
+					pygame.draw.rect(self.screen, (0,0,int(unitBoard[x][y].hp*12.7)), (x*self.scale[0],y*self.scale[1], self.scale[0],self.scale[1]))
 	def handleEvents(self, play, board):
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
@@ -65,11 +65,12 @@ class Gui:
 				x = x/20
 				y = y/20
 				print x, y
-				if board[x][y].name == 'dragon' and abs(play.x-x) + abs(play.y-y) < 3:
+				if board[x][y].name == 'dragon' and abs(play.x-x) + abs(play.y-y) <= 2:
 					#attack
 					print 'attack dragon'
-				elif board[x][y].name == 'player' and abs(play.x-x) + abs(play.y-y) < 3:
+					return (x,y)
+				elif board[x][y].name == 'player' and abs(play.x-x) + abs(play.y-y) <= 5:
 					#heal
 					print 'heal player'
+					return (x,y)
 		return 0
-		

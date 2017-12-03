@@ -92,7 +92,7 @@ class Client:
 					self.board.board[x][y] = player
 					self.changed = 1
 
-				elif command["cmd"] == "despawn" :
+				elif command["cmd"] == "despawn":
 					u_id = command["playerID"]
 					for x in range(25):
 						for y in range(25):
@@ -100,7 +100,18 @@ class Client:
 								self.board.board[x][y] = Empty(x,y)
 								self.changed = 1
 								break #FIXME break only leaves 1 for. Not that it matters. but its inefficient
-
+				elif command["cmd"] == "heal":
+					u_id = command["id"]
+					#Heal player
+					x,y = self.board.findObject(u_id)
+					self.board.board[x][y].healDamage(self.board, x, y)
+					self.changed = 1
+				elif command["cmd"] == "damage":
+					u_id = command["id"]
+					#Damage dragon
+					x,y = self.board.findObject(u_id)
+					self.board.board[x][y].dealDamage(self.board, x, y)
+					self.changed = 1
 				self.lock.release()
 
 
@@ -193,6 +204,15 @@ class Client:
 			
 			if event in (1,2,3,4):   #Left
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": player.id, "where": (player.x, player.y)}}))
+			elif event != 0:
+				target = self.board.board[event[0]][event[1]]
+				if target.name == 'dragon':
+					cmd = "damage"
+				elif target.name == 'player':
+					cmd = "heal"
+				else:
+					continue
+				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": cmd, "id": target.id}}))
 			self.lock.release()
 
 			#Switch case event for movement
