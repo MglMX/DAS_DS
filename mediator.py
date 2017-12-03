@@ -16,7 +16,7 @@ class Queue:
 		self.addTick = 10
 	def getQueue(self):
 		''' Returns the queue as a string to send to the servers '''
-		return str((self.timestamp,self.timestamp+self.addTick, self.queueList )) #FIXME JSON
+		return str((self.timestamp,self.timestamp+self.addTick, self.queueList ))
 	def tick(self):
 		self.timestamp += self.addTick #First, set new time stamp of the queue
 		#Then, change the queue
@@ -61,7 +61,7 @@ class Mediator:
 		s = socket(AF_INET,SOCK_STREAM)
 		s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 3)
 		s.bind((self.ip, self.port))
-		s.listen(10) #FIXME number of clients connecting at the same time. should support the 100 right?
+		s.listen(100) #FIXME number of clients connecting at the same time. should support 100 in case they connect at the same time right?
 		self.master = s
 	def runReplica(self):
 		log.println("I am in runReplica", 1, ['debug'])
@@ -79,7 +79,7 @@ class Mediator:
 		while 1:
 			self.time = time.time()
 			try:
-				command = receive(med_sock) #FIXME timeout --> active mediator crashed #
+				command = receive(med_sock)
 				log.println("Received command from mediator: " + str(command), 2, ['update'])
 
 				if command["type"] == 'Error':
@@ -92,10 +92,10 @@ class Mediator:
 			self.handleCommand(command)
 
 	def handleCommand(self, command):
-		''' For now this only updates the server list. Later we need to update the queue to [FIXME] '''
+		''' This updates the server list and the queue '''
 		log.println("Handle command", 2, ['debug'])
 		log.println("Command: "+str(command), 1, ['debug'])
-		#FIXME JSON WAY TO DO IT
+
 		if command["type"] == "ServerList":
 			for server in self.servers:
 				self.servers[server] = (command["content"][str(server)][0],None,self.time)
@@ -194,7 +194,7 @@ class Mediator:
 		log.println('New server is trying to join: ' + str(addr), 2, ['connection'])
 		
 		message = receive(conn) #Obtain the message with the ip and port of the server trying to connect
-		if message["type"] == 'Error' or message is None: #FIXME
+		if message["type"] == 'Error' or message is None:
 			log.println('Error handling new server', 2, ['error','connection'])
 			return
 		
@@ -236,10 +236,10 @@ class Mediator:
 		for server in servers:
 			if self.servers[server][1] in can_recv: #If server sent a message
 				message = receive(self.servers[server][1])				
-				if message["type"] == 'Error': #FIXME when would the mediator receive disconnect? change for message["type"]=="Disconnect"
+				if message["type"] == 'Error':
 					del self.servers[server] #Disconnect a server if its offline
 					self.broadcastList()
-				try: #FIXME Shouldn't this try be before the receive? No because receive doesnt throw errors in utils.py
+				try:
 					if message["type"]=="Report":						
 						connectedPlayers = int(message["content"]["connectedPlayers"])
 						self.servers[server] = (connectedPlayers, self.servers[server][1], self.time) #Update number of players

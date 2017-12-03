@@ -42,14 +42,8 @@ class ClientConn:
 		self.server.clients.remove(self)
 		self.server.players_number -= 1
 
-		#FIXME broadcast despawn - too heavy
-		command = json.dumps({"type": "command", "content": {"cmd": "despawn", "playerID": self.id}})
-		for client in self.server.clients:
-			try:
-				send(client.conn, command)
-			except Exception, e:
-				log.println("Error at removePlayer broadcasting despawn cmd", 2, ["error", "client"]) #FIXME - remove client here too
-		
+		#broadcast despawn
+		self.server.broadcastCommand({"cmd": "despawn", "playerID": self.id})
 
 	def checkIdle(self, curr_time):
 		return curr_time-self.lastTimeReport > 15 #AFK X seconds = disconnnect. FIXME
@@ -115,38 +109,20 @@ class HandleClientsState():
 		board = json.dumps({"type": "board", "content": {"ID": client.id, "board": self.server.board.getBoard()}})
 		send(conn, board)
 
-		#Broadcast spawn command - FIXME should group commands and send them all at once
+		#Broadcast spawn command to everyone except the client itself
 		x = client.player.x
 		y = client.player.y
 		u_id = client.player.id
 		hp = client.player.hp
 		ap = client.player.ap
-		command = json.dumps({"type": "command", "content": {"cmd": "spawn", "player": {"x":x,"y":y,"id":u_id,"hp":hp,"ap":ap}}})
-		for otherClient in self.server.clients:
-			if otherClient != client:
-				try:
-					send(otherClient.conn, command)
-				except Exception, e:
-					log.println("Error at handleNewClient broadcasting spawn cmd", 2, ["error", "client"]) #FIXME - remove otherClient here too
-		
+		self.server.broadcastCommand({"cmd": "spawn", "player": {"x":x,"y":y,"id":u_id,"hp":hp,"ap":ap}}, exceptClient=client)
+	
 		#Add player to list of clients
 		self.server.players_number += 1
 		self.server.clients.append(client)
 
-	def broadcastCommand(self, command):
-		''' FIXME '''
-		toRemove = []
-		for client in self.server.clients:
-			try:
-				send(client.conn, json.dumps({"type": "command", "content": command}))
-			except Exception, e:
-				log.println("Error broadcasting command: " + str(e), 2, ['error'])
-				toRemove.append(client)
-		for client in toRemove:
-			client.removePlayer()
 
-
-	def handleCommands(self, readable):
+	def handleCommands(self, readable, curr_time):
 		toRemove = []
 		for client in self.server.clients:
 			if client.conn in readable:
@@ -159,22 +135,22 @@ class HandleClientsState():
 						pos = command["where"]
 						if self.server.board.board[pos[0]][pos[1]].name == 'empty':
 							self.server.board.movePlayer(u_id, pos) #TODO check invalid move
-							self.broadcastCommand(command) #FIXME too heavy. just for testing
+							self.server.broadcastCommand(command)
 
 					elif command["cmd"] == "heal":
 						u_id = command["id"]
 						#Heal player
 						x,y = self.server.board.findObject(u_id)
 						client.player.healDamage(self.server.board, x, y)
-						self.broadcastCommand(command)
+						self.server.broadcastCommand(command)
 					elif command["cmd"] == "damage":
 						u_id = command["id"]
 						#Damage dragon
 						x,y = self.server.board.findObject(u_id)
 						client.player.dealDamage(self.server.board, x, y)
-						self.broadcastCommand(command)
+						self.server.broadcastCommand(command)
 
-					client.lastTimeReport = self.server.timer.getTime() #FIXME - Too heavy. Should only call it once for all clients
+					client.lastTimeReport = curr_time
 				except Exception, e:
 					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
 					toRemove.append(client)
@@ -216,7 +192,7 @@ class HandleClientsState():
 					return
 			else:
 				#Client commands
-				self.handleCommands(readable)
+				self.handleCommands(readable, current)
 
 		self.server.state = SendReportState(self.server)
 
@@ -245,7 +221,7 @@ class SynchronizeTimeState():
 			assert T1["type"] == "Synch"
 			T1 = float(T1["content"])
 
-			print '\n\nx: ' + str(x) + ' | TIME AT MEDIATOR: ' + str(T1 + x/2) + '\n\n' #FIXME remove this print
+			print '\nx: ' + str(x) + ' | TIME AT MEDIATOR: ' + str(T1 + x/2) + '\n' #FIXME remove this print
 
 			self.server.timer.timeDiff = T2 - (T1 + x/2)
 			self.server.timeToSynch = self.server.timer.getTime()+200 #FIXME each 200 seconds the server synchronizes
@@ -299,7 +275,7 @@ class Server:
 		self.curr_id = 3 #Next ID to assign
 		#################
 
-		self.clients = [] #FIXME - better structure for clients maybe
+		self.clients = []
 
 	def findIp(self):
 		''' Find local IP address '''
@@ -338,11 +314,23 @@ class Server:
 				time.sleep(1)
 				log.println('There is no active mediator...', 3, ['publish'])
 				errors += 1
-				if errors == 3: #Try three times before quitting [FIXME number]
+				if errors == 3: #Try three times before quitting [FIXME number of times]
 					sys.exit()
 				else:
 					continue
 			break
+	def broadcastCommand(self, command, exceptClient=None):
+		''' FIXME should group commands and send them all at once right?'''
+		toRemove = []
+		for client in self.clients:
+			if client != exceptClient:
+				try:
+					send(client.conn, json.dumps({"type": "command", "content": command}))
+				except Exception, e:
+					log.println("Error broadcasting command: " + str(e), 2, ['error'])
+					toRemove.append(client)
+		for client in toRemove:
+			client.removePlayer()
 
 PORT = 6971
 
