@@ -30,29 +30,21 @@ class Gui:
 				if event.key == 276:
 					if 0 < play.x and board[play.x-1][play.y].name == 'empty':
 						play.x = play.x - 1
-						#board[play.x][play.y] = play
-						#board[play.x+1][play.y] = Empty(play.x+1,play.y)
 						print 'left', play.x
 						return 1
 				elif event.key == 273:
 					if 0 < play.y and board[play.x][play.y-1].name == 'empty':
 						play.y = play.y - 1
-						#board[play.x][play.y] = play
-						#board[play.x][play.y+1] = Empty(play.x,play.y+1)
 						print 'up', play.y
 						return 2	
 				elif event.key == 275:
 					if 24 > play.x  and board[play.x+1][play.y].name == 'empty':
 						play.x = play.x + 1
-						#board[play.x][play.y] = play
-						#board[play.x-1][play.y] = Empty(play.x-1,play.y)
 						print 'right', play.x
 						return 3
 				elif event.key == 274:
 					if 24 > play.y and board[play.x][play.y+1].name == 'empty':
 						play.y = play.y + 1
-						#board[play.x][play.y] = play
-						#board[play.x][play.y-1] = Empty(play.x,play.y-1)
 						print 'down', play.y
 						return 4	
 				elif event.key == 32:
@@ -64,7 +56,6 @@ class Gui:
 				(x,y) = event.pos
 				x = x/20
 				y = y/20
-				print x, y
 				if board[x][y].name == 'dragon' and abs(play.x-x) + abs(play.y-y) <= 2:
 					#attack
 					print 'attack dragon'
