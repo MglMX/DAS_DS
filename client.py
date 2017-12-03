@@ -21,6 +21,7 @@ class Client:
 
 		self.changed = 0 #Board has changed FIXME testing purposes mostly
 		print 'Successfully connected.'
+		self.lookupAnotherServer = False
 
 	def getServer(self):
 		print "Inside getServer"
@@ -79,6 +80,10 @@ class Client:
 
 		except Exception,e:
 			print 'Error ready command: ' + str(e) #TODO - Try to find another server or something
+			self.lock.acquire()
+			self.lookupAnotherServer = True
+			self.lock.release()
+			return
 
 	def receiveBoard(self) :
 		msg = receive(self.s)
@@ -107,6 +112,7 @@ class Client:
 			send(self.s, command)
 		except Exception, e:
 			print 'Error sending command:',e
+			self.lookupAnotherServer = True
 
 	def runGame(self):
 		''' Careful with accessing shared resources. Use locks. '''
@@ -133,6 +139,23 @@ class Client:
 		
 		while 1:
 			self.lock.acquire()
+			if self.lookupAnotherServer:
+
+				self.lookupAnotherServer = False
+				#FIXME code duplication
+				self.board = Board()
+				ip, port = self.getServer() #Fetch a server from the mediator
+				self.s = socket(AF_INET, SOCK_STREAM) 
+				self.s.connect((ip, port))  #Connect to server
+				#Here we should send a message saying we would like to restore our previous state if possible
+
+				t = Thread(target=self.serverConnectionDaemon)
+				t.setDaemon(True)
+				player = s.receiveBoard()
+				self.changed = 1
+				t.start() #Start daemon after receiving the full board
+
+
 			if self.changed:
 				self.changed = 0
 				gui.screen.fill((0,0,0)) #Clear screen
@@ -141,10 +164,10 @@ class Client:
 			event = gui.handleEvents(player, self.board.board)	
 			if event != 0:
 				self.changed = 1
-			self.lock.release()
 			
 			if event in (1,2,3,4):   #Left
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": player.id, "where": (player.x, player.y)}}))
+			self.lock.release()
 
 			#Switch case event for movement
 			pygame.display.flip()
