@@ -26,7 +26,7 @@ class Unit(object):
 		print '\n\nDRAGON NOW HAS ',self.hp
 
 		if(self.hp > self.maxHP):
-			self.hp = maxHP
+			self.hp = self.maxHP
 
 		if(self.hp <= 0):
 			self.hp = 0
