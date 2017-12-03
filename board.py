@@ -20,17 +20,22 @@ class Board:
 		return res
 
 	def movePlayer(self, u_id, pos):
-		for x in range(25):
-			for y in range(25):
-				if self.board[x][y].id == u_id:
-					self.board[pos[0]][pos[1]] = self.board[x][y]
-					self.board[x][y] = Empty(x,y)
-					self.board[pos[0]][pos[1]].x = pos[0]
-					self.board[pos[0]][pos[1]].y = pos[1]
-					return
+		pos2 = self.findObject(u_id)
+		if not pos2:
+			return 0
+
+		x = pos2[0]
+		y = pos2[1]
+
+		self.board[pos[0]][pos[1]] = self.board[x][y]
+		self.board[x][y] = Empty(x,y)
+		self.board[pos[0]][pos[1]].x = pos[0]
+		self.board[pos[0]][pos[1]].y = pos[1]
+		return 1
 
 	def findObject(self, u_id):
-		''' TODO use this function in all the places is needed '''
+		''' Finds the position of the object with id u_id in the board.
+			Returns None if there is no such object '''
 		for x in range(25):
 			for y in range(25):
 				if self.board[x][y].id == u_id:

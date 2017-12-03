@@ -94,12 +94,13 @@ class Client:
 
 				elif command["cmd"] == "despawn":
 					u_id = command["playerID"]
-					for x in range(25):
-						for y in range(25):
-							if self.board.board[x][y].name == 'player' and self.board.board[x][y].id == u_id:
-								self.board.board[x][y] = Empty(x,y)
-								self.changed = 1
-								break #FIXME break only leaves 1 for. Not that it matters. but its inefficient
+					pos = self.board.findObject(u_id)
+					if pos:
+						x,y = pos
+						if self.board.board[x][y].name == 'player':
+							self.board.board[x][y] = Empty(x,y)
+							self.changed = 1
+
 				elif command["cmd"] == "heal":
 					u_id = command["id"]
 					#Heal player
@@ -116,7 +117,7 @@ class Client:
 
 
 		except Exception,e:
-			print 'Error ready command: ' + str(e) #TODO - Try to find another server or something
+			print 'Error ready command: ' + str(e)
 			self.lock.acquire()
 			self.lookupAnotherServer = True
 			self.lock.release()
