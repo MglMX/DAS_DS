@@ -1,31 +1,19 @@
+from Unit import Unit
+
+MIN_TIME_BETWEEN_TURNS = 2
+MAX_TIME_BETWEEN_TURNS = 7
+MAX_HITPOINTS = 20
+MIN_HITPOINTS = 10
+MIN_ATTACKPOINTS = 1
+MAX_ATTACKPOINTS = 10
+
+
 class Player(Unit):
+	def __init__(self, x, y, u_id, isUser=False):
+		super(Player, self).__init__(x,y, MIN_HITPOINTS, MAX_HITPOINTS, MIN_ATTACKPOINTS, MAX_ATTACKPOINTS, u_id)
+		self.name = 'player'
+		self.isUser = isUser
 
-	self.MIN_TIME_BETWEEN_TURNS = 2
-	self.MAX_TIME_BETWEEN_TURNS = 7
-	self.MAX_HITPOINTS = 20
-	self.MIN_HITPOINTS = 10
-	self.MIN_ATTACKPOINTS = 1
-	self.MAX_ATTACKPOINTS = 10
-
-    def __init__(x, y):
-		#random hitpoint and attackpoints
-		#random delay
-		if(!spawn(x, y)):
-		    return
-		#player thread?
-
-    def run()
-		var direction
-		var adjacentUnitType
-		var targetX = 0
-		var targetY = 0
-		self.running = true
-		
-		while(GameState.getRunningState() && self.running):
-		    try:
-			#sleep while player considers next move
-			if(getHitPoints <=0):
-			    break
-		#random direction to move if no units present
-		#if player at end of map/can't move there x4 NWSE
-		#if noUnits in square move if there's player attempt healing if dragin there attempot attacking
+	def healDamage(self, board, x, y, healed): 	
+		if board.board[x][y].name == 'player':
+			board.board[x][y].adjustHitPoints(self.ap)

@@ -16,7 +16,7 @@ class Board:
 	def getLine(self, l):
 		res = []
 		for i in l:
-			res.append((i.name, i.id)) #FIXME -- Append the other attributes
+			res.append((i.name, i.id, i.hp, i.ap))
 		return res
 
 	def movePlayer(self, u_id, pos):

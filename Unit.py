@@ -1,15 +1,24 @@
-class Unit:
-    def __init__(self, x, y, maxHitPoints, hitPoints, attackPoints, unitID):
+import random
+
+class Unit(object):
+	def __init__(self, x, y, minHitPoints, maxHitPoints, minAttackPoints, maxAttackPoints, unitID):
 		self.x = x
 		self.y = y
-		self.maxHitPoints = maxHitPoints
-		self.hitPoints = hitPoints
-		self.attackPoints = attackPoints
-		self.unitID = unitID
-		self.running = false
-        self.name = 'Unit' #Dragons should be 'dragon'. Players should be 'player'
+		
+		#I dont think we need this
+		#self.minHitPoints = minHitPoints
+		#self.maxHitPoints = maxHitPoints
+		#self.minAttackPoints = minAttackPoints
+		#self.maxAttackPoints = maxAttackPoints
 
-    def adjustHitPoints(modifier):
+		self.id = unitID
+		self.name = 'Unit' #Dragons should be 'dragon'. Players should be 'player'
+		self.hp = random.randint(minHitPoints, maxHitPoints)
+		self.ap = random.randint(minAttackPoints, maxAttackPoints)
+		self.maxHP = self.hp
+
+
+	def adjustHitPoints(self, modifier):
 		if(self.hitPoints <= 0):
 			return
 
@@ -22,57 +31,13 @@ class Unit:
 			self.removeUint(x, y)
 
 	  
-    def dealDamage(x, y, damage):
-        ''' TODO '''
-        pass
+	def dealDamage(self, board, x, y):
+		if board.board[x][y].name == 'dragon':
+			board.board[x][y].adjustHitPoints(-self.ap)
 
-    def healDamage(x, y, healed): 	
-    	''' TODO '''
-    	pass
-
-    def getMaxHitPoints():
-    	return self.maxHitPoints
-
-    def getUnitID():
-		return self.unitID
-
-
-    def setPosition(x, y):
+	def setPosition(self, x, y):
 		self.x = x
 		self.y = y
-
-
-    def getX():
-		return self.x
-
-    def getY():
-		return self.y
-
-
-    def getHitPoints():
-		return self.hitPoints
-
-
-    def getAttackPoints():
-		return self.attackPoints
-
-
-    def spawn(x, y):
-    	''' TODO '''
-    	pass
-
-    def getType(x, y):
-    	''' Abstract function '''
-    	pass
-
-    def removeUnit(x, y):
-    	''' not sure what TODO here '''
-    	pass
-
-
-
-
-
 
 
 

@@ -4,3 +4,5 @@ class Empty:
 		self.id = 0
 		self.x = x
 		self.y = y
+		self.hp = 0
+		self.ap = 0

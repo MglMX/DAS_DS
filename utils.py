@@ -7,6 +7,7 @@ log = Logger(1)
 MED_LIST = [('localhost', 6969), ('localhost', 6970)] #FIXME at deployment --> This is the list of mediator (first element) and its replicas
 
 def send(sock, message):
+	#FIXME I think the sockets send dont guarantee that all data is sent. The sent function returns the number of bytes sent though so we can get it to work
 	log.println('Sending message: '+message, 3, ['message'])
 	sock.send('<MSG>'+message+'</MSG>')
 

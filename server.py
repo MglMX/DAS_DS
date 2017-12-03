@@ -1,12 +1,13 @@
 from gameLog import Logger
 from board  import Board
 from empty  import Empty
+from Dragon import Dragon
+from Player import Player
+
 from socket import *
 from utils  import *
 import sys, time
 import select, random
-
-from gui import Dragon, Player #FIXME
 
 log = Logger(1, [])
 #log.println(msg, priority, keywords)
@@ -136,6 +137,7 @@ class HandleClientsState():
 						if self.server.board.board[pos[0]][pos[1]].name == 'empty':
 							self.server.board.movePlayer(u_id, pos) #TODO check invalid move
 							self.broadcastCommand(command) #FIXME too heavy. just for testing
+					client.lastTimeReport = self.server.timer.getTime() #FIXME - Too heavy. Should only call it once for all clients
 				except Exception, e:
 					log.println("Error handling commands: " + str(e), 2, ['command', 'error'])
 					toRemove.append(client)

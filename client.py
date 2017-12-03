@@ -1,6 +1,8 @@
 from utils  import * #receive and send
 from socket import *
-from gui    import Gui, Dragon, Player
+from gui    import Gui
+from Dragon import Dragon
+from Player import Player
 from board  import Board
 from empty  import Empty
 import pygame, sys, time
