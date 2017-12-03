@@ -42,6 +42,15 @@ class ClientConn:
 		self.server.clients.remove(self)
 		self.server.players_number -= 1
 
+		#FIXME broadcast despawn - too heavy
+		command = json.dumps({"type": "command", "content": {"cmd": "despawn", "playerID": self.id}})
+		for client in self.server.clients:
+			try:
+				send(client.conn, command)
+			except Exception, e:
+				log.println("Error at removePlayer broadcasting despawn cmd", 2, ["error", "client"]) #FIXME - remove client here too
+		
+
 	def checkIdle(self, curr_time):
 		return curr_time-self.lastTimeReport > 15 #AFK X seconds = disconnnect. FIXME
 
@@ -105,6 +114,20 @@ class HandleClientsState():
 		client = ClientConn(conn, self.server)
 		board = json.dumps({"type": "board", "content": {"ID": client.id, "board": self.server.board.getBoard()}})
 		send(conn, board)
+
+		#Broadcast spawn command - FIXME should group commands and send them all at once
+		x = client.player.x
+		y = client.player.y
+		u_id = client.player.id
+		hp = client.player.hp
+		ap = client.player.ap
+		command = json.dumps({"type": "command", "content": {"cmd": "spawn", "player": {"x":x,"y":y,"id":u_id,"hp":hp,"ap":ap}}})
+		for otherClient in self.server.clients:
+			if otherClient != client:
+				try:
+					send(otherClient.conn, command)
+				except Exception, e:
+					log.println("Error at handleNewClient broadcasting spawn cmd", 2, ["error", "client"]) #FIXME - remove otherClient here too
 		
 		#Add player to list of clients
 		self.server.players_number += 1 #TODO create list of players

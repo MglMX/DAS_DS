@@ -70,13 +70,37 @@ class Client:
 				assert command["type"] == "command"
 				command = command["content"]
 				self.lock.acquire()
-				if command["cmd"] == "move":
+
+				if command["cmd"] == "move": #MOVE CMD
 					u_id = command["id"]
 					pos = command["where"]
 
 					print 'Moving player:',u_id,'to',pos
 					self.board.movePlayer(u_id, pos)
 					self.changed = 1
+
+				elif command["cmd"] == "spawn" : #SPAWN CMD
+					player = command["player"]
+					x = player["x"]
+					y = player["y"]
+					u_id = player["id"]
+					hp = player["hp"]
+					ap = player["ap"]
+					player = Player(x,y,u_id)
+					player.hp = hp
+					player.ap = ap
+					self.board.board[x][y] = player
+					self.changed = 1
+
+				elif command["cmd"] == "despawn" :
+					u_id = command["playerID"]
+					for x in range(25):
+						for y in range(25):
+							if self.board.board[x][y].name == 'player' and self.board.board[x][y].id == u_id:
+								self.board.board[x][y] = Empty(x,y)
+								self.changed = 1
+								break #FIXME break only leaves 1 for. Not that it matters. but its inefficient
+
 				self.lock.release()
 
 
