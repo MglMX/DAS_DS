@@ -70,6 +70,7 @@ class Mediator:
 		try:
 			log.println(active, 1, ['debug'])
 			med_sock.connect(active) #Connect to active mediator to receive updates
+			med_sock.settimeout(10) #X seconds without the active mediator sending a message = This takes over
 			nodeType = json.dumps({"type": "InitialConnection","content": {"nodeType": REPLICACODE}})  # JSon indicating that it is a server trying to connect
 			send(med_sock, nodeType)
 		except:
@@ -83,6 +84,10 @@ class Mediator:
 				log.println("Received command from mediator: " + str(command), 2, ['update'])
 
 				if command["type"] == 'Error':
+					if command["content"]["info"] == 'timedout':
+						takeOverMsg = json.dumps({"type": "takeOver"})
+						print '\n\nTake over message:',takeOverMsg
+						send(med_sock, takeOverMsg)
 					med_sock.close()
 					return
 			except Exception, e:
@@ -139,12 +144,18 @@ class Mediator:
 				toRemove = None
 				for replica in self.replicaList:
 					if replica in can_recv:
+						msg = receive(replica)
+						if msg["type"] == "takeOver":
+							return #Go down on purpose because mediator replica is going to take over
 						toRemove = replica
 						break
 				else:
 					self.handleNewServerMsgs(can_recv)
 				if toRemove:
 					self.replicaList.remove(toRemove)
+
+			else:
+				self.updateReplicas() #Regularly send an update to replicas
 
 	def checkIdleServers(self):
 		''' Checks if a server didn't send a report for X seconds. If so, remove it from the server list '''
