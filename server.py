@@ -155,6 +155,7 @@ class HandleClientsState():
 						y = obj.y
 						if(abs(client.player.x - x) + abs(client.player.y - y ) <= 5): #Check if the player is within right distance
 							client.player.healDamage(self.server.board, x, y)
+							command["finalHP"] = obj.hp
 							self.server.broadcastCommand(command)
 					elif command["cmd"] == "damage":
 						u_id = command["id"]
@@ -172,7 +173,7 @@ class HandleClientsState():
 								self.server.broadcastCommand({"cmd": "despawn", "playerID": self.server.board.board[obj.x][obj.y].id})
 								self.server.board.board[x][y] = Empty(x,y)
 							else:
-								command["finalHP"] = obj.hp
+								command["finalHP"] = obj.hp #idempotent
 								self.server.broadcastCommand(command)
 					elif command["cmd"] == "disconnect":
 						u_id = command["id"]

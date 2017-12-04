@@ -131,7 +131,8 @@ class Client:
 					obj = self.board.findObject(u_id)
 					x = obj.x
 					y = obj.y
-					self.board.board[x][y].healDamage(self.board, x, y)
+					#self.board.board[x][y].healDamage(self.board, x, y)
+					obj.hp = command["finalHP"]
 					self.changed = 1
 				elif command["cmd"] == "damage":
 					u_id = command["id"]
@@ -249,8 +250,8 @@ class Client:
 
 
 
-#s = Client(MED_LIST)
-s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
+s = Client(MED_LIST)
+#s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
 while 1:
 	status = s.runGame()
 	if s.lookupAnotherServer: #Server crashed or something
