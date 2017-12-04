@@ -5,7 +5,8 @@ from Dragon import Dragon
 from Player import Player
 from board  import Board
 from empty  import Empty
-import pygame, sys, time
+from clientAI import clientAI
+import pygame, sys, time, random
 
 from threading import Thread, Semaphore #There is a thread waiting for server commands and updating the gui
 
@@ -194,7 +195,7 @@ class Client:
 		t.setDaemon(True)
 
 		
-		player = s.receiveBoard()
+		self.player = s.receiveBoard()
 
 		self.changed = 1
 		t.start() #Start daemon after receiving the full board
@@ -210,16 +211,15 @@ class Client:
 
 			if self.changed:
 				self.changed = 0
-				self.gui.screen.fill((0,0,0)) #Clear screen
 				self.gui.drawLines()			 #Draw grid
 				self.gui.drawUnits(self.board.board)
 
-			event = self.gui.handleEvents(player, self.board.board)	
+			event = self.gui.handleEvents(self.player, self.board.board)
 			if event != 0:
 				self.changed = 1
 			
 			if event in (1,2,3,4):   #Left
-				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": player.id, "where": (player.x, player.y)}}))
+				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": self.player.id, "where": (self.player.x, self.player.y)}}))
 			elif event != 0:
 				target = self.board.board[event[0]][event[1]]
 				if target.name == 'dragon':
@@ -235,7 +235,10 @@ class Client:
 			pygame.display.flip()
 
 
-s = Client(MED_LIST)
+
+
+#s = Client(MED_LIST)
+s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
 while 1:
 	status = s.runGame()
 	if s.lookupAnotherServer: #Server crashed or something
