@@ -289,15 +289,28 @@ class Server:
 
 		self.board = Board()
 		#TESTING CODE
-		drag1 = Dragon(5,6, 1)
-		self.board.insertObject(drag1)
-		drag2 = Dragon(9,6, 2)
-		self.board.insertObject(drag2)
-		self.curr_id = 3 #Next ID to assign
+		#drag1 = Dragon(5,6, 1)
+		#self.board.insertObject(drag1)
+		#drag2 = Dragon(9,6, 2)
+		#self.board.insertObject(drag2)
+		self.curr_id = 1 #Next ID to assign
 		#################
-
+		self.spawnDragons()
 		self.clients = []
 
+	def spawnDragons(self):
+		i = 0
+		while i < 20:
+			x = random.randint(0,24)
+			y = random.randint(0,24)
+			if self.board.board[x][y].name == 'empty':
+				self.board.insertObject(Dragon(x,y,self.curr_id))
+				self.curr_id += 1
+				i += 1
+
+
+
+			
 	def findIp(self):
 		''' Find local IP address '''
 		s = socket(AF_INET, SOCK_DGRAM)
