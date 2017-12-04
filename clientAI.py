@@ -36,7 +36,9 @@ class clientAI:
                 pygame.quit()
                 sys.exit()
 
-        if self.getPlayersToHeal(board,player):
+        if dragon is None: #All dragons are killed so there is no closest dragon
+            return 5 #Indicating that the client should disconnect
+        elif self.getPlayersToHeal(board,player):
             player_to_heal = random.choice(self.getPlayersToHeal(board,player))
             return (player_to_heal.x,player_to_heal.y)
         elif self.distanceToDragon(dragon,player) <= 2:
@@ -97,7 +99,7 @@ class clientAI:
         for x in range(25):
             for y in range(25):
                 unit = board[x][y]
-                if unit.name == 'player' and self.distance((player.x, player.y), (unit.x, unit.y)) <= 5:
+                if unit.name == 'player' and unit.id != player.id and self.distance((player.x, player.y), (unit.x, unit.y)) <= 5:
                     if unit.hp / unit.maxHP < 0.5:  # The player has less than 50% of his life
                         players_to_heal.append(unit)
 

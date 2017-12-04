@@ -43,3 +43,11 @@ class Board:
 					self.board[x][y].x = x
 					self.board[x][y].y = y
 					return self.board[x][y]
+
+	def deleteObject(self,u_id):
+		'''Finds the object with u_id and changes it for an empty object. It returns the coordinates where the object was'''
+		for x in range(25):
+			for y in range(25):
+				if self.board[x][y].id == u_id:
+					self.board[x][y] = Empty(x,y)
+					return (x,y)
