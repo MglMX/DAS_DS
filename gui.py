@@ -11,6 +11,7 @@ class Gui:
 		self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
 
 	def drawLines(self):
+		self.screen.fill((0, 0, 0))  # Clear screen
 		for x in range(25):
 			pygame.draw.line(self.screen, (255,255,255), (x*self.scale[0],0), (x*self.scale[0], self.HEIGHT))
 			pygame.draw.line(self.screen, (255,255,255), (0,x*self.scale[1]), (self.WIDTH,x*self.scale[1]))
