@@ -200,7 +200,6 @@ class Client:
 				self.changed = 1
 			
 			if event in (1,2,3,4):   #Left
-				print "The closest dragon has id: "+str(self.getClosestDragon().id)
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": player.id, "where": (player.x, player.y)}}))
 			elif event != 0:
 				target = self.board.board[event[0]][event[1]]
@@ -216,13 +215,17 @@ class Client:
 			#Switch case event for movement
 			pygame.display.flip()
 
+	def distance(self,pos1, pos2):
+		# "the distance between two squares is the sum of the horizontal and vertical distance between them"
+		return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+
 	def distanceToDragon(self,dragon):
 		player_x, player_y = self.board.findObject(self.id) #Getting the position of the player
 
-		return abs(player_x - dragon.x)+abs(player_y - dragon.y)
+		return self.distance((player_x,player_y),(dragon.x,dragon.y))
 
 	def getClosestDragon(self):
-		''' This method returns the dragon that is closest to the player.'''
+		''' Returns the dragon that is closest to the player.'''
 
 		dragons = []
 		for x in range(25):
@@ -232,6 +235,36 @@ class Client:
 
 		closestDragon = min(dragons,key=self.distanceToDragon)
 		return closestDragon
+
+	def getAdjSquares(self,x,y):
+		'''Returns the list of coordinates adjacent to the square with coordinates x and y'''
+		adjSquares = []
+		adjSquares.append((x-1,y))#Left
+		adjSquares.append((x,y+1))#Top
+		adjSquares.append((x+1,y))#Right
+		adjSquares.append((x,y-1))#Bottom
+
+
+		return adjSquares
+
+	def getSquareToMove(self,dragon):
+		''' Compares the distance of the adjacent square to the player and chooses the one that is closest to the dragon'''
+		player_x, player_y = self.board.findObject(self.id)  # Getting the position of the player
+		dragon = self.getClosestDragon()
+
+		if dragon.x > player_x and self.board.board[player_x+1][player_y].name == "empty":
+			return (player_x+1,player_y)
+		elif dragon.x < player_x and self.board.board[player_x-1][player_y].name == "empty":
+			return (player_x-1,player_y)
+		elif dragon.y > player_y and self.board.board[player_x][player_y+1].name == "empty":
+			return (player_x,player_y+1)
+		elif dragon.y < player_y and self.board.board[player_x][player_y-1].name == "empty":
+			return (player_x,player_y-1)
+
+
+
+
+
 
 s = Client(MED_LIST)
 while 1:
