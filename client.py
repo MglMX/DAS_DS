@@ -180,7 +180,6 @@ class Client:
 						player.hp = boardServer[x][y][2]
 						player.ap = boardServer[x][y][3]
 						self.board.insertObject(player)
-						print 'MY PLAYER HAS AP', player.ap
 		return player
 
 	def sendCommand(self, command):
