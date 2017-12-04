@@ -26,7 +26,7 @@ class clientAI:
                                      (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
                 elif unitBoard[x][y].name == 'player':
                     if unitBoard[x][y].isUser:
-                        pygame.draw.rect(self.screen, (50, 250, int(unitBoard[x][y].hp * 12.7)),
+                        pygame.draw.rect(self.screen, (0, int(unitBoard[x][y].hp * 12.7), 0),
                                      (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
                     else:
                         pygame.draw.rect(self.screen, (0, 0, int(unitBoard[x][y].hp * 12.7)),

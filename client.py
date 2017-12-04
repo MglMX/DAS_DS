@@ -22,6 +22,7 @@ class Client:
 		self.s.settimeout(2) #FIXME timeout 
 		self.board = Board()
 		self.lock = Semaphore()
+		self.dead = False
 
 		if reuse_id:
 			self.id = reuse_id
@@ -114,10 +115,13 @@ class Client:
 					if obj:
 						x = obj.x
 						y = obj.y
-						print 'RECIEVED DESPAWN MESSAGE'
+						print 'RECEIVED DESPAWN MESSAGE'
 						if self.board.board[x][y].name != 'empty':
-							if self.board.board[x][y].isUser:
-								return #USER DIED
+							if self.board.board[x][y].name == 'player' and self.board.board[x][y].isUser:
+								print '\nYou died'
+								self.dead = True
+								self.lock.release()
+								return
 							self.board.board[x][y] = Empty(x,y)
 							self.changed = 1
 
@@ -145,11 +149,12 @@ class Client:
 			print 'Error ready command: ' + str(e)
 			print type(e)
 			self.lock.acquire()
-			self.lookupAnotherServer = True
+			if not self.dead:
+				self.lookupAnotherServer = True
 			self.lock.release()
 			return
 
-	def receiveBoard(self) :
+	def receiveBoard(self):
 		msg = receive(self.s)
 		assert msg["type"] == "board"
 		msg = msg["content"]
@@ -187,7 +192,8 @@ class Client:
 			send(self.s, command)
 		except Exception, e:
 			print 'Error sending command:',e
-			self.lookupAnotherServer = True
+			if not self.dead:
+				self.lookupAnotherServer = True
 
 	def runGame(self):
 		''' Careful with accessing shared resources. Use locks. '''
@@ -205,7 +211,7 @@ class Client:
 		while 1:
 			self.lock.acquire()
 
-			if self.lookupAnotherServer:
+			if self.dead or self.lookupAnotherServer:
 				self.s.close()
 				self.lock.release()
 				t.join()
@@ -249,3 +255,5 @@ while 1:
 	status = s.runGame()
 	if s.lookupAnotherServer: #Server crashed or something
 		s = Client(MED_LIST, reuse_id=s.id, reuse_gui=s.gui)
+	elif s.dead:
+		break
