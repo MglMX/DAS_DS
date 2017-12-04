@@ -20,15 +20,16 @@ class Board:
 		return res
 
 	def movePlayer(self, u_id, pos):
-		pos2 = self.findObject(u_id)
-		if not pos2:
+		player = self.findObject(u_id)
+		if not player:
 			return 0
 
-		x = pos2[0]
-		y = pos2[1]
+		x = player.x
+		y = player.y
+		print 'x:', x, 'y', y 
 
-		self.board[pos[0]][pos[1]] = self.board[x][y]
 		self.board[x][y] = Empty(x,y)
+		self.board[pos[0]][pos[1]] = player
 		self.board[pos[0]][pos[1]].x = pos[0]
 		self.board[pos[0]][pos[1]].y = pos[1]
 		return 1
@@ -39,4 +40,6 @@ class Board:
 		for x in range(25):
 			for y in range(25):
 				if self.board[x][y].id == u_id:
-					return x,y
+					self.board[x][y].x = x
+					self.board[x][y].y = y
+					return self.board[x][y]

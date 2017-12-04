@@ -91,6 +91,7 @@ class Client:
 
 					print 'Moving player:',u_id,'to',pos
 					self.board.movePlayer(u_id, pos)
+					print self.board.board[pos[0]][pos[1]].name
 					self.changed = 1
 
 				elif command["cmd"] == "spawn" : #SPAWN CMD
@@ -108,24 +109,31 @@ class Client:
 
 				elif command["cmd"] == "despawn":
 					u_id = command["playerID"]
-					pos = self.board.findObject(u_id)
-					if pos:
-						x,y = pos
-						if self.board.board[x][y].name == 'player':
+					obj = self.board.findObject(u_id)
+					if obj:
+						x = obj.x
+						y = obj.y
+						print 'RECIEVED DESPAWN MESSAGE'
+						if self.board.board[x][y].name != 'empty':
 							self.board.board[x][y] = Empty(x,y)
 							self.changed = 1
 
 				elif command["cmd"] == "heal":
 					u_id = command["id"]
 					#Heal player
-					x,y = self.board.findObject(u_id)
+					obj = self.board.findObject(u_id)
+					x = obj.x
+					y = obj.y
 					self.board.board[x][y].healDamage(self.board, x, y)
 					self.changed = 1
 				elif command["cmd"] == "damage":
 					u_id = command["id"]
 					#Damage dragon
-					x,y = self.board.findObject(u_id)
-					self.board.board[x][y].dealDamage(self.board, x, y)
+					obj = self.board.findObject(u_id)
+					x = obj.x
+					y = obj.y
+					#self.board.board[x][y].dealDamage(self.board, x, y)
+					obj.hp = command["finalHP"]
 					self.changed = 1
 				self.lock.release()
 
@@ -151,13 +159,24 @@ class Client:
 		for x in range(25):
 			for y in range(25):
 				if boardServer[x][y][0] == 'dragon':
-					self.board.insertObject(Dragon(x, y, boardServer[x][y][1]))
+					newDragon = Dragon(x, y, boardServer[x][y][1])
+					newDragon.hp = boardServer[x][y][2]
+					newDragon.ap = boardServer[x][y][3]
+					self.board.insertObject(newDragon)
+
+
 				elif boardServer[x][y][0] == 'player':
 					if boardServer[x][y][1] != playerID:
-						self.board.insertObject(Player(x, y, boardServer[x][y][1]))
+						newPlayer = Player(x, y, boardServer[x][y][1])
+						newPlayer.hp = boardServer[x][y][2]
+						newPlayer.ap = boardServer[x][y][3]
+						self.board.insertObject(newPlayer)
 					else:
 						player = Player(x, y, playerID, isUser=True)
+						player.hp = boardServer[x][y][2]
+						player.ap = boardServer[x][y][3]
 						self.board.insertObject(player)
+						print 'MY PLAYER HAS AP', player.ap
 		return player
 
 	def sendCommand(self, command):

@@ -34,6 +34,7 @@ class ClientConn:
 				break
 		player = Player(x, y, self.id)
 		self.server.board.insertObject(player)
+		print 'THIS IS THE PLAYERS HP IN THE SERVER', player.hp
 		return player
 
 	def removePlayer(self):
@@ -46,7 +47,7 @@ class ClientConn:
 		self.server.broadcastCommand({"cmd": "despawn", "playerID": self.id})
 
 	def checkIdle(self, curr_time):
-		return curr_time-self.lastTimeReport > 15 #AFK X seconds = disconnnect. FIXME
+		return curr_time-self.lastTimeReport > 70 #AFK X seconds = disconnnect. FIXME
 
 
 class Timer:
@@ -120,6 +121,7 @@ class HandleClientsState():
 		#Add player to list of clients
 		self.server.players_number += 1
 		self.server.clients.append(client)
+		print 'CLIENT.PLAYER.AP', client.player.ap
 
 	def validMove(self, pos):
 		if pos[0] > -1 and pos[0] < 25 and pos[1] > -1 and pos[1] < 25:
@@ -140,23 +142,34 @@ class HandleClientsState():
 						u_id = command["id"]
 						pos = command["where"]
 						if self.validMove(pos) and self.server.board.board[pos[0]][pos[1]].name == 'empty':
-							self.server.board.movePlayer(u_id, pos) #TODO check invalid move
+							self.server.board.movePlayer(u_id, pos) 
 							self.server.broadcastCommand(command)
 
 					elif command["cmd"] == "heal":
 						u_id = command["id"]
 						#Heal player
-						x,y = self.server.board.findObject(u_id)
-						if(abs(client.player.x - x) + abs(client.player.y - y ) < 2): #Check if the player is within right distance
+						obj = self.server.board.findObject(u_id)
+						x = obj.x
+						y = obj.y
+						if(abs(client.player.x - x) + abs(client.player.y - y ) <= 5): #Check if the player is within right distance
 							client.player.healDamage(self.server.board, x, y)
 							self.server.broadcastCommand(command)
 					elif command["cmd"] == "damage":
 						u_id = command["id"]
 						#Damage dragon
-						x,y = self.server.board.findObject(u_id)
-						if(abs(client.player.x - x) + abs(client.player.y - y ) < 2): #Check if the dragon is within right distance
+						obj = self.server.board.findObject(u_id)
+						x = obj.x
+						y = obj.y
+						if(abs(client.player.x - x) + abs(client.player.y - y ) <= 2): #Check if the dragon is within right distance
 							client.player.dealDamage(self.server.board, x, y)
-							self.server.broadcastCommand(command)
+							print "HP for dragon is", self.server.board.board[obj.x][obj.y].hp
+							if self.server.board.board[obj.x][obj.y].hp <= 0:
+								print 'remove object'
+								self.server.broadcastCommand({"cmd": "despawn", "playerID": self.server.board.board[obj.x][obj.y].id})
+								self.server.board.board[x][y] = Empty(x,y)
+							else:
+								command["finalHP"] = obj.hp
+								self.server.broadcastCommand(command)
 
 					client.lastTimeReport = curr_time
 				except Exception, e:
