@@ -170,7 +170,11 @@ class HandleClientsState():
 							else:
 								command["finalHP"] = obj.hp
 								self.server.broadcastCommand(command)
-
+					elif command["cmd"] == "disconnect":
+						u_id = command["id"]
+						self.server.board.deleteObject(u_id)
+						log.println("Player: "+u_id+" deleted from the board",1)
+						toRemove.append(client)
 					client.lastTimeReport = curr_time
 				except Exception, e:
 					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
