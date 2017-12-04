@@ -116,6 +116,8 @@ class Client:
 						y = obj.y
 						print 'RECIEVED DESPAWN MESSAGE'
 						if self.board.board[x][y].name != 'empty':
+							if self.board.board[x][y].isUser:
+								return #USER DIED
 							self.board.board[x][y] = Empty(x,y)
 							self.changed = 1
 
@@ -135,6 +137,7 @@ class Client:
 					y = obj.y
 					#self.board.board[x][y].dealDamage(self.board, x, y)
 					obj.hp = command["finalHP"]
+					print obj.name,'health is now',obj.hp
 					self.changed = 1
 				self.lock.release()
 

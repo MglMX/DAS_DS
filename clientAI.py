@@ -92,6 +92,7 @@ class clientAI:
             return (player_x, player_y + 1)  # Up
         elif dragon.y < player_y and board[player_x][player_y - 1].name == "empty":
             return (player_x, player_y - 1)  # Down
+        return (player.x, player.y)
 
 
     def getPlayersToHeal(self,board,player):

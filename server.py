@@ -158,6 +158,8 @@ class HandleClientsState():
 						u_id = command["id"]
 						#Damage dragon
 						obj = self.server.board.findObject(u_id)
+						if not obj:
+							continue
 						x = obj.x
 						y = obj.y
 						if(abs(client.player.x - x) + abs(client.player.y - y ) <= 2): #Check if the dragon is within right distance
@@ -192,6 +194,19 @@ class HandleClientsState():
 			elif current > self.server.timeToSynch:
 				self.server.state = SynchronizeTimeState(self.server)
 				return
+			elif current > self.server.nextTime:
+				self.server.time += 1
+				players = self.server.board.dragonsAI(self.server.time)
+				if players:
+					for player in players:
+						print 'IM HERE!'
+						if player.hp == 0:
+							print ':)'
+							self.server.broadcastCommand({"cmd": "despawn", "playerID": player.id})
+						else:
+							print ':('
+							self.server.broadcastCommand({"cmd": "damage", "id": player.id, "finalHP": player.hp})
+
 
 			toCheck = [i.conn for i in self.server.clients]
 			toCheck.append(self.server.sock)
@@ -292,11 +307,8 @@ class Server:
 		self.timeToSynch = None
 
 		self.board = Board()
-		#TESTING CODE
-		#drag1 = Dragon(5,6, 1)
-		#self.board.insertObject(drag1)
-		#drag2 = Dragon(9,6, 2)
-		#self.board.insertObject(drag2)
+		self.time = 0 #TURN
+		self.nextTime = self.timer.getTime() + 1 #FIXME time until next turn
 		self.curr_id = 1 #Next ID to assign
 		#################
 		self.spawnDragons()

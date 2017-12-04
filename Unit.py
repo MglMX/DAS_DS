@@ -36,7 +36,7 @@ class Unit(object):
 
 	  
 	def dealDamage(self, board, x, y):
-		if board.board[x][y].name == 'dragon':
+		if board.board[x][y].name != 'empty':
 			board.board[x][y].adjustHitPoints(-self.ap)
 
 	def setPosition(self, x, y):

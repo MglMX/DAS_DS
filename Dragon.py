@@ -21,12 +21,11 @@ class Dragon(Unit):
 		self.nextTurn = random.randint(MIN_TIME_BETWEEN_TURNS, MAX_TIME_BETWEEN_TURNS)
 
 
-	def doAction(self, board):
+	def doAction(self, board, time):
 		''' A.I : Sleep while Dragon can't move. Do nothing if dragon is dead. Pick random player close to itself to attack '''
-		self.turn += 1
+		self.turn = time
 		if self.turn == self.nextTurn: #Wakes up
-			self.turn = 0
-			self.nextTurn = random.randint(MIN_TIME_BETWEEN_TURNS, MAX_TIME_BETWEEN_TURNS)
+			self.nextTurn = self.turn + random.randint(MIN_TIME_BETWEEN_TURNS, MAX_TIME_BETWEEN_TURNS)
 
 			if self.hp <= 0: #If dragon is dead, do nothing
 				return 0
@@ -34,12 +33,13 @@ class Dragon(Unit):
 			adjPlayers = []
 			for x in range(25):
 				for y in range(25):
-					if board[x][y].name == 'player' and distance((self.x,self.y), (x,y)) <= 2:
+					if board.board[x][y].name == 'player' and distance((self.x,self.y), (x,y)) <= 2:
 						adjPlayers.append((x,y))
 			if adjPlayers: #Attack player
 				player = random.choice(adjPlayers)
 				self.dealDamage(board, player[0], player[1])
-				return player
+				print 'DEALING DAMAGE TO PLAYER:',board.board[player[0]][player[1]].hp,self.ap
+				return board.board[player[0]][player[1]]
 
 
 		return 0
