@@ -200,6 +200,7 @@ class Client:
 				self.changed = 1
 			
 			if event in (1,2,3,4):   #Left
+				print "The closest dragon has id: "+str(self.getClosestDragon().id)
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": player.id, "where": (player.x, player.y)}}))
 			elif event != 0:
 				target = self.board.board[event[0]][event[1]]
@@ -215,6 +216,22 @@ class Client:
 			#Switch case event for movement
 			pygame.display.flip()
 
+	def distanceToDragon(self,dragon):
+		player_x, player_y = self.board.findObject(self.id) #Getting the position of the player
+
+		return abs(player_x - dragon.x)+abs(player_y - dragon.y)
+
+	def getClosestDragon(self):
+		''' This method returns the dragon that is closest to the player.'''
+
+		dragons = []
+		for x in range(25):
+			for y in range (25):
+				if self.board.board[x][y].name == 'dragon':
+					dragons.append(self.board.board[x][y])
+
+		closestDragon = min(dragons,key=self.distanceToDragon)
+		return closestDragon
 
 s = Client(MED_LIST)
 while 1:
