@@ -121,6 +121,12 @@ class HandleClientsState():
 		self.server.players_number += 1
 		self.server.clients.append(client)
 
+	def validMove(self, pos):
+		if pos[0] > -1 and pos[0] < 25 and pos[1] > -1 and pos[1] < 25:
+			return True
+		return False
+
+
 
 	def handleCommands(self, readable, curr_time):
 		toRemove = []
@@ -133,7 +139,7 @@ class HandleClientsState():
 					if command["cmd"] == "move":
 						u_id = command["id"]
 						pos = command["where"]
-						if self.server.board.board[pos[0]][pos[1]].name == 'empty':
+						if self.validMove(pos) and self.server.board.board[pos[0]][pos[1]].name == 'empty':
 							self.server.board.movePlayer(u_id, pos) #TODO check invalid move
 							self.server.broadcastCommand(command)
 
@@ -141,14 +147,16 @@ class HandleClientsState():
 						u_id = command["id"]
 						#Heal player
 						x,y = self.server.board.findObject(u_id)
-						client.player.healDamage(self.server.board, x, y)
-						self.server.broadcastCommand(command)
+						if(abs(client.player.x - x) + abs(client.player.y - y ) < 2): #Check if the player is within right distance
+							client.player.healDamage(self.server.board, x, y)
+							self.server.broadcastCommand(command)
 					elif command["cmd"] == "damage":
 						u_id = command["id"]
 						#Damage dragon
 						x,y = self.server.board.findObject(u_id)
-						client.player.dealDamage(self.server.board, x, y)
-						self.server.broadcastCommand(command)
+						if(abs(client.player.x - x) + abs(client.player.y - y ) < 2): #Check if the dragon is within right distance
+							client.player.dealDamage(self.server.board, x, y)
+							self.server.broadcastCommand(command)
 
 					client.lastTimeReport = curr_time
 				except Exception, e:
