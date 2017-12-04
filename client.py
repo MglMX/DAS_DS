@@ -220,6 +220,10 @@ class Client:
 			
 			if event in (1,2,3,4):   #Left
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": self.player.id, "where": (self.player.x, self.player.y)}}))
+			elif event == 5: #Event for when all the dragons are killed
+				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "disconnect", "id": self.player.id}}))
+				log.println("All the dragons are killed. I will now exit",1)
+				sys.exit()
 			elif event != 0:
 				target = self.board.board[event[0]][event[1]]
 				if target.name == 'dragon':
