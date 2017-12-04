@@ -9,6 +9,8 @@ from utils  import *
 import sys, time
 import select, random
 
+DRAGONS_TO_SPAWN = 2
+
 log = Logger(1, [])
 #log.println(msg, priority, keywords)
 
@@ -304,7 +306,7 @@ class Server:
 
 	def spawnDragons(self):
 		i = 0
-		while i < 20:
+		while i < DRAGONS_TO_SPAWN:
 			x = random.randint(0,24)
 			y = random.randint(0,24)
 			if self.board.board[x][y].name == 'empty':

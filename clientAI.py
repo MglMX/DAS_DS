@@ -2,6 +2,7 @@ import random
 import pygame,sys
 import time
 
+TIME_BETWEEN_COMMANDS = 0.25
 pygame.init()
 
 class clientAI:
@@ -28,7 +29,7 @@ class clientAI:
                                      (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
 
     def handleEvents(self,player,board):
-        time.sleep(1) #FIXME Time between commands
+        time.sleep(TIME_BETWEEN_COMMANDS)
 
         dragon = self.getClosestDragon(board,player)
         for event in pygame.event.get():
