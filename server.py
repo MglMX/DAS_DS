@@ -20,9 +20,12 @@ class ServerConn:
 		self.conn = conn
 		self.ip = ip
 		self.port = port
+		self.sid = (self.ip, self.port)
 
 	def getIpPort(self):
 		return [self.ip,self.port]
+	def remove(self):
+		self.server.neighbours.remove(self)
 
 
 class ClientConn:
@@ -51,7 +54,7 @@ class ClientConn:
 		#board.insertObject(player)
 		return player
 
-	def removePlayer(self):
+	def remove(self):
 		''' Despawn player and remove it from clients list. FIXME: concurrency problems '''
 		self.server.board.board[self.player.x][self.player.y] = Empty(self.player.x, self.player.y)
 		if self in self.server.clients:
@@ -87,7 +90,7 @@ class SendReportState():
 			if client.checkIdle(curr_time):
 				toRemove.append(client)
 		for client in toRemove:
-			client.removePlayer()
+			client.remove()
 
 		#Then send updated list of clients to mediator
 		if self.server.med_sock is None:
@@ -116,7 +119,7 @@ class HandleClientsState():
 		if message["type"] == "ConnectionToServer":
 			if message["content"]["nodeType"]== 0: #It is a client
 				command = self.handleNewClient(conn)
-				self.server.tss.addCommand(command, current)
+				self.server.tss.addCommand(command, current, self.server.sid)
 			elif message["content"]["nodeType"]== 1: #It is a server
 				if not self.server.checkIfSocketAlreadySaved(conn):
 					self.server.neighbours.append(ServerConn(conn,self.server,addr[0],addr[1])) #addr = (ip,port)
@@ -134,7 +137,7 @@ class HandleClientsState():
 							jsonCommand = {"type": "command", "content": {"cmd": command.cmd, "timestamp": command.timestamp, "id": command.who}}
 						else:
 							print 'WHAT?',command.cmd
-
+						jsonCommand["content"]["issuedBy"] = command.issuedBy
 						commandList.append(jsonCommand)
 					message = json.dumps({"type":"InitialBoard", "content":{"board": self.server.tss.trailingStates[-1].board.getBoard(), "commands": commandList}})
 					send(conn, message)
@@ -164,7 +167,7 @@ class HandleClientsState():
 		#Add player to list of clients
 		self.server.players_number += 1
 		self.server.clients.append(client)
-		return {"type": "command", "content": {"cmd": "spawn", "player": {"x":x,"y":y,"id":u_id,"hp":hp,"ap":ap}}} #FIXME - if command fails, try to spawn it elsewhere
+		return {"type": "command", "content": {"cmd": "spawn", "timestamp": self.server.timer.getTime(), "player": {"x":x,"y":y,"id":u_id,"hp":hp,"ap":ap}}} #FIXME - if command fails, try to spawn it elsewhere
 
 	def validMove(self, pos):
 		if pos[0] > -1 and pos[0] < 25 and pos[1] > -1 and pos[1] < 25:
@@ -191,7 +194,7 @@ class HandleClientsState():
 						log.println("Player: "+u_id+" deleted from the board",1)
 						toRemove.append(client)
 					else:
-						self.server.tss.addCommand(command, curr_time) #FIXME - when a dragon is hit, it might die and we have to broadcast the despawn, etc
+						self.server.tss.addCommand(command, curr_time, self.server.sid) #FIXME - when a dragon is hit, it might die and we have to broadcast the despawn, etc
 
 				except Exception, e:
 					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
@@ -203,12 +206,12 @@ class HandleClientsState():
 
 					assert command["type"] == "command" #Server should otherwise only send commands to each other probably
 					#FIXME check the last time it sent report? probably should do the trick described in broadcastCommand instead
-					self.server.tss.addCommand(command, command["timestamp"]) #FIXME - add server ID probably to solve conflicts and flag saying its a foreign command and shouldt be broadcasted again
+					self.server.tss.addCommand(command, command["content"]["timestamp"], server.sid) #FIXME - add server ID probably to solve conflicts and flag saying its a foreign command and shouldt be broadcasted again
 				except Exception, e:
 					log.println("Error handling server commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
 					#FIXME Remove server from list or whatever
 		for client in toRemove:
-			client.removePlayer()
+			client.remove()
 		self.server.tss.executeCommands(curr_time)
 
 
@@ -228,7 +231,7 @@ class HandleClientsState():
 				commands = self.server.board.dragonsAI(self.server.time)
 				if commands:
 					for command in commands:
-						self.server.tss.addCommand(command, current)
+						self.server.tss.addCommand(command, current, self.server.sid)
 
 			toCheck = [i.conn for i in self.server.clients]
 			toCheck.append(self.server.sock)
@@ -359,6 +362,7 @@ class Server:
 		self.clients = []
 
 		self.tss = TSS(self)
+		self.sid = (self.local_ip, self.local_port)
 
 	def spawnDragons(self):
 		i = 0
@@ -417,7 +421,7 @@ class Server:
 							
 							#Add commands
 							for command in commands:
-								self.tss.addCommand(command, command["timestamp"]) #FIXME id of server should be put there when sending the board
+								self.tss.addCommand(command, command["content"]["timestamp"], command["issuedBy"]) #FIXME id of server should be put there when sending the board
 
 
 
@@ -485,7 +489,7 @@ class Server:
 				else:
 					continue
 			break
-	def broadcastCommand(self, command, exceptClient=None):
+	def broadcastCommand(self, command, exceptClient=None, clientsOnly=False):
 		''' FIXME should group commands and send them all at once right?'''
 		toRemove = []
 		for client in self.clients:
@@ -496,15 +500,16 @@ class Server:
 					log.println("Error broadcasting command to client: " + str(e), 2, ['error'])
 					toRemove.append(client)
 
-		for server in self.neighbours:
-			try:
-				send(server.conn, json.dumps({"type": "command", "content": command}))
-			except Exception, e:
-				log.println("Error broadcasting command to server: " + str(e), 2, ['error'])
-				#FIXME remove server from list. OR, when you receive the list and there's one server that you're connected to but it's not there, then remove it from the list
+		if not clientsOnly:
+			for server in self.neighbours:
+				try:
+					send(server.conn, json.dumps({"type": "command", "content": command}))
+				except Exception, e:
+					log.println("Error broadcasting command to server: " + str(e), 2, ['error'])
+					toRemove.append(server)
 
-		for client in toRemove:
-			client.removePlayer()
+		for node in toRemove:
+			node.remove()
 
 PORT = 6971
 

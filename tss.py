@@ -113,7 +113,7 @@ class DespawnCommand:
 
 
 
-def createCmd(command, curr_time):
+def createCmd(command, curr_time, issuedBy):
 	''' Receives a string with the command received and creates a class Command with everything needed for consistency.
 		Attention: curr_time is a time that will be shared with all the commands in the same round. that probably wont be a problem '''
 	
@@ -139,7 +139,7 @@ def createCmd(command, curr_time):
 		return
 	res.timestamp = curr_time #Timestamp added to each command
 	res.result = None #When result is none, the command wasn't executed
-	res.issuedBy = None #Server id that issued this command
+	res.issuedBy = issuedBy #Server id that issued this command
 	return res
 
 
@@ -186,6 +186,7 @@ class TrailingState:
 					if command.result != command.preceding.result:
 						pass #SIGNAL ROLLBACK HERE - TODO
 				elif toBroadCast:
+					toBroadCast["issuedBy"] = command.issuedBy
 					commandsToBroadCast.append(toBroadCast)
 					print 'goingToBroadCast:',toBroadCast
 		return commandsToBroadCast
@@ -199,10 +200,10 @@ class TSS:
 		self.trailingStates.append(TrailingState(self, 0, 0))
 		self.trailingStates.append(TrailingState(self, 100, 1))
 		self.trailingStates.append(TrailingState(self, 200, 2))
-	def addCommand(self, command, curr_time):
+	def addCommand(self, command, curr_time, issuedBy):
 		preceding = None
 		for ts in self.trailingStates:
-			cmd = createCmd(command, curr_time)
+			cmd = createCmd(command, curr_time, issuedBy)
 			cmd.preceding = preceding #Same commands are connected 
 			preceding = cmd
 			ts.addCommand(cmd)
@@ -212,5 +213,7 @@ class TSS:
 		for ts in self.trailingStates:
 			toBroadCast = ts.executeCommands(curr_time)
 			for cmd in toBroadCast:
-				#if cmd.issuedBy == (self.server.local_ip,self.server.local_port): FIXME use me
-				self.server.broadcastCommand(cmd) #We only want to broadcast commands sent by this server
+				if cmd["issuedBy"] == self.server.sid:
+					self.server.broadcastCommand(cmd) #We only want to broadcast commands sent by this server
+				else:
+					self.server.broadcastCommand(cmd, clientsOnly=True) #Dont broadcast what is not ours to other servers
