@@ -110,7 +110,7 @@ class Client:
 					self.changed = 1
 
 				elif command["cmd"] == "despawn":
-					u_id = command["playerID"]
+					u_id = command["id"]
 					obj = self.board.findObject(u_id)
 					if obj:
 						x = obj.x

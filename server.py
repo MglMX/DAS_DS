@@ -3,7 +3,7 @@ from board  import Board
 from empty  import Empty
 from Dragon import Dragon
 from Player import Player
-
+from tss import TSS #Consistency
 from socket import *
 from utils  import *
 import sys, time
@@ -13,6 +13,7 @@ DRAGONS_TO_SPAWN = 2
 
 log = Logger(1, [])
 #log.println(msg, priority, keywords)
+
 
 class ClientConn:
 	def __init__(self, conn, server):
@@ -46,7 +47,7 @@ class ClientConn:
 		self.server.players_number -= 1
 
 		#broadcast despawn
-		self.server.broadcastCommand({"cmd": "despawn", "playerID": self.id})
+		self.server.broadcastCommand({"cmd": "despawn", "id": self.id})
 
 	def checkIdle(self, curr_time):
 		return curr_time-self.lastTimeReport > 70 #AFK X seconds = disconnnect. FIXME
@@ -170,7 +171,7 @@ class HandleClientsState():
 							print "HP for dragon is", self.server.board.board[obj.x][obj.y].hp
 							if self.server.board.board[obj.x][obj.y].hp <= 0:
 								print 'remove object'
-								self.server.broadcastCommand({"cmd": "despawn", "playerID": self.server.board.board[obj.x][obj.y].id})
+								self.server.broadcastCommand({"cmd": "despawn", "id": self.server.board.board[obj.x][obj.y].id})
 								self.server.board.board[x][y] = Empty(x,y)
 							else:
 								command["finalHP"] = obj.hp #idempotent
@@ -205,7 +206,7 @@ class HandleClientsState():
 						print 'IM HERE!'
 						if player.hp == 0:
 							print ':)'
-							self.server.broadcastCommand({"cmd": "despawn", "playerID": player.id})
+							self.server.broadcastCommand({"cmd": "despawn", "id": player.id})
 						else:
 							print ':('
 							self.server.broadcastCommand({"cmd": "damage", "id": player.id, "finalHP": player.hp})
@@ -316,6 +317,8 @@ class Server:
 		#################
 		self.spawnDragons()
 		self.clients = []
+
+		self.tss = TSS(self)
 
 	def spawnDragons(self):
 		i = 0
