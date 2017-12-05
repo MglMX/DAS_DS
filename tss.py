@@ -46,6 +46,7 @@ class DamageCommand:
 				self.antiCommand = {"cmd": "heal", "subject": self.who, "id":self.target}
 				return {"cmd": "damage", "subject": self.who, "id": self.target, "finalHP": target.hp} #Broadcast this to servers and clients
 			else:
+				print '\nDAMAGING\n\n'
 				oldPlayer = {"x": target.x, "y": target.y, "id": target.id, "hp": target.hp, "ap": target.ap}
 				board.board[obj.x][obj.y] = Empty(obj.x, obj.y)
 				self.result = {"x":target.x, "y": target.y, "player": None} #There is no player at x,y
@@ -85,6 +86,7 @@ class SpawnCommand:
 			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
+			print '\nSPAWWWWNING\n\n\n'
 			player = Player(x, y, u_id) #Players are the only ones that are spawn dynamically
 			board.insertObject(player)
 			self.result = {"x":x, "y":y,"player": self.unit} #There is a player in x,y
@@ -159,7 +161,7 @@ class TrailingState:
 			if self.commands[i].timestamp > command.timestamp: #FIXME - SOLVE CONFLICTS CRITICAL: while timestamps are equal, go back, unless there's a command of the same type but the serverID is lower or something 
 				break
 		self.commands = self.commands[:i] + [command] + self.commands[i:]
-	def executeCommands(self, curr_time, board):
+	def executeCommands(self, curr_time):
 		''' Also check for inconsistencies. Rollback if needed '''
 		commandsToBroadCast = []
 		for command in self.commands:
@@ -167,7 +169,7 @@ class TrailingState:
 				break
 			#Execute commands
 			if not command.result: #If command wasn't executed before
-				toBroadCast = command.execute(board) #check result from this and the preceding state. if they differ, signal rollback
+				toBroadCast = command.execute(self.board) #check result from this and the preceding state. if they differ, signal rollback
 				if command.preceding: #If there's a preceding state
 					if command.result != command.preceding.result:
 						pass #SIGNAL ROLLBACK HERE - T
@@ -196,6 +198,6 @@ class TSS:
 	def executeCommands(self, curr_time):
 		''' Also check for inconsistencies. Rollback if needed '''
 		for ts in self.trailingStates:
-			toBroadCast = ts.executeCommands(curr_time, self.server.board)
+			toBroadCast = ts.executeCommands(curr_time)
 			for cmd in toBroadCast:
 				self.server.broadcastCommand(cmd)

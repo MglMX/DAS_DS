@@ -19,10 +19,19 @@ class Client:
 
 		self.s = socket(AF_INET, SOCK_STREAM) 
 		self.s.connect((ip, port))  #Connect to server
-		self.s.settimeout(2) #FIXME timeout 
+		self.s.settimeout(2) #FIXME timeout
+
+		server_connection = json.dumps({"type":"ConnectionToServer","content":{"nodeType":0}})
+		try:
+			send(self.s,server_connection) #Indicate to the server that I am a client
+		except Exception,e:
+			print "Error indicating server that I am a client ",e
+
+
 		self.board = Board()
 		self.lock = Semaphore()
 		self.dead = False
+		self.spawned = False #Necessary because a server might have trouble creating the client
 
 		if reuse_id:
 			self.id = reuse_id
@@ -105,6 +114,10 @@ class Client:
 					hp = player["hp"]
 					ap = player["ap"]
 					player = Player(x,y,u_id)
+					if u_id == self.id:
+						player.isUser=True
+						self.spawned = True
+						self.player = player
 					player.hp = hp
 					player.ap = ap
 					self.board.board[x][y] = player
@@ -165,7 +178,6 @@ class Client:
 		playerID = msg["ID"]
 
 		self.id = playerID
-		player = None
 
 		for x in range(25):
 			for y in range(25):
@@ -177,20 +189,14 @@ class Client:
 
 
 				elif boardServer[x][y][0] == 'player':
-					if boardServer[x][y][1] != playerID:
-						newPlayer = Player(x, y, boardServer[x][y][1])
-						newPlayer.hp = boardServer[x][y][2]
-						newPlayer.ap = boardServer[x][y][3]
-						self.board.insertObject(newPlayer)
-					else:
-						player = Player(x, y, playerID, isUser=True)
-						player.hp = boardServer[x][y][2]
-						player.ap = boardServer[x][y][3]
-						self.board.insertObject(player)
-		return player
+					newPlayer = Player(x, y, boardServer[x][y][1])
+					newPlayer.hp = boardServer[x][y][2]
+					newPlayer.ap = boardServer[x][y][3]
+					self.board.insertObject(newPlayer)
 
 	def sendCommand(self, command):
 		try:
+			print 'sending',command
 			send(self.s, command)
 		except Exception, e:
 			print 'Error sending command:',e
@@ -205,7 +211,7 @@ class Client:
 		t.setDaemon(True)
 
 		
-		self.player = s.receiveBoard()
+		s.receiveBoard()
 
 		self.changed = 1
 		t.start() #Start daemon after receiving the full board
@@ -213,6 +219,9 @@ class Client:
 		while 1:
 			self.lock.acquire()
 
+			if not self.spawned:
+				self.lock.release()
+				continue
 			if self.dead or self.lookupAnotherServer:
 				self.s.close()
 				self.lock.release()
