@@ -14,6 +14,16 @@ DRAGONS_TO_SPAWN = 2
 log = Logger(1, [])
 #log.println(msg, priority, keywords)
 
+class ServerConn:
+	def __init__(self,conn,server,ip,port):
+		self.server = server
+		self.conn = conn
+		self.ip = ip
+		self.port = port
+
+	def getIpPort(self):
+		return [self.ip,self.port]
+
 
 class ClientConn:
 	def __init__(self, conn, server):
@@ -98,11 +108,22 @@ class HandleClientsState():
 		self.stateName = "Handle Clients State"
 		self.TIME_BETWEEN_REPORT = 5 #X.   Each X seconds the server should send the mediator a report with the players that are connected
 	
-	def handleNewClient(self):
+	def handleNewConnection(self):
+		conn, addr = self.server.sock.accept()
+		message = receive(conn)
+		if message["type"] == "ConnectionToServer":
+			if message["content"]["nodeType"]== 0: #It is a client
+				self.handleNewClient(conn)
+			elif message["content"]["nodeType"]== 1: #It is a server
+				if not self.server.checkIfSocketAlreadySaved(conn):
+					self.server.neighbours.append(ServerConn(conn,self.server,addr[0],addr[1])) #addr = (ip,port)
+					log.println("Connection accepted from a server and socket created",1)
+
+
+
+	def handleNewClient(self,conn):
 		''' First, accept connection. Then, send the board and the player ID '''
 
-		#Accept connection
-		conn,addr = self.server.sock.accept() #conn holds the socket necessary to connect to the client
 		conn.settimeout(1) #FIXME set timeout properly
 
 		log.println('Player connected', 1, ['player'])
@@ -189,6 +210,7 @@ class HandleClientsState():
 			client.removePlayer()
 
 
+
 	def run(self):
 		begin = self.server.timer.getTime()
 		while 1:
@@ -219,7 +241,7 @@ class HandleClientsState():
 			
 			if self.server.sock in readable:
 				try:
-					self.handleNewClient()
+					self.handleNewConnection()
 				except Exception,e:
 					log.println('Error receiving client: '+str(e), 1, ['error'])
 
@@ -228,7 +250,12 @@ class HandleClientsState():
 					For now I think it is the only thing the mediator sends the servers '''
 				message = receive(self.server.med_sock)
 				if message["type"] == "ServerList":
-					self.server.neighbours = message["content"]["servers"]
+					#TODO Create serverConn for every new server on the list
+					#self.server.neighbours = message["content"]["servers"]
+					neighboursList = message["content"]["servers"] #(ip,port)
+
+					self.server.createServerSocket(neighboursList)
+
 					log.println('Server neighbour list updated: '+str(self.server.neighbours), 1, ['update'])
 				elif message["type"] == "Error":
 					self.server.med_sock = None
@@ -276,6 +303,8 @@ class SynchronizeTimeState():
 			self.server.state = InitialState(self.server)
 
 		
+
+
 class InitialState():
 	''' All states have function "run"	'''
 	def __init__(self, server):
@@ -287,7 +316,18 @@ class InitialState():
 		try:
 			message = receive(self.server.med_sock)
 			assert message["type"] == 'ServerList'
-			self.server.neighbours = message["content"]["servers"]
+			neighbours = message["content"]["servers"]
+			if len(neighbours) == 1: #If the server is the only one in the network it should generate the board and spawn the dragons
+				#self.board = Board()
+				#self.spawnDragons()
+				log.println("I am the first server in the network. I should create the board", 1)
+			else: #if not it should ask for the board to another server
+				self.server.createServerSocket(neighbours)
+				log.println("I am not the first in the networkd. I should ask for the board.", 1)
+				#neighbourConn = random.choice(self.server.neighbours) #FIXME Choose any of the neighbours to ask for the board. May cause problems
+
+
+
 		except Exception, e:
 			log.println("Error in InitialState: " + str(e), 2, ['error', 'init'])
 
@@ -310,12 +350,16 @@ class Server:
 		self.timer = Timer()
 		self.timeToSynch = None
 
-		self.board = Board()
+
 		self.time = 0 #TURN
 		self.nextTime = self.timer.getTime() + 1 #FIXME time until next turn
 		self.curr_id = 1 #Next ID to assign
 		#################
+
+		#FIXME Dragons and board should be generated only by the first server
+		self.board = Board()
 		self.spawnDragons()
+
 		self.clients = []
 
 		self.tss = TSS(self)
@@ -330,9 +374,48 @@ class Server:
 				self.curr_id += 1
 				i += 1
 
+	def createServerSocket(self,neighboursList):
+		''' Receives a list of (ip,port).Takes every item of the list and checks if it has been created and if not it adds them to the server list of neighbours'''
+		alreadyCreated = False
 
+		for serverIpPort in neighboursList:
+			for serverConn in self.neighbours:
+
+				if serverIpPort == serverConn.getIpPort():
+					alreadyCreated = True
+					break
+
+			if not alreadyCreated and (serverIpPort[0] != self.local_ip or (serverIpPort[0] == self.local_ip and serverIpPort[1] != self.local_port)):  # if it is not created and it is not myself
+				try:
+					log.println("New server added to the list of servers", 1)
+					serverSocket = socket(AF_INET, SOCK_STREAM)
+					serverSocket.connect((serverIpPort[0], serverIpPort[1]))  # serverIpPort = (ip,port)
+
+					server_connection = json.dumps(
+						{"type": "ConnectionToServer", "content": {"nodeType": 1}})
+					try:
+						send(serverSocket, server_connection)  # Indicate to the server that I am a server
+					except Exception, e:
+						print "Error indicating server that I am a client ", e
+
+					self.neighbours.append(
+						ServerConn(serverSocket, self, serverIpPort[0], serverIpPort[1]))
+				except Exception, e:
+					log.println("It was not possible to connect to the server: " + str(serverIpPort) + "|" + str(e),1,['Error'])
+
+			alreadyCreated = False
 
 			
+	def checkIfSocketAlreadySaved(self,socket):
+
+		alreadySaved = False
+		for serverConn in self.neighbours:
+			if serverConn.conn == socket:
+				alreadySaved = True
+				break
+
+		return alreadySaved
+
 	def findIp(self):
 		''' Find local IP address '''
 		s = socket(AF_INET, SOCK_DGRAM)

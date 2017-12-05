@@ -19,7 +19,15 @@ class Client:
 
 		self.s = socket(AF_INET, SOCK_STREAM) 
 		self.s.connect((ip, port))  #Connect to server
-		self.s.settimeout(2) #FIXME timeout 
+		self.s.settimeout(2) #FIXME timeout
+
+		server_connection = json.dumps({"type":"ConnectionToServer","content":{"nodeType":0}})
+		try:
+			send(self.s,server_connection) #Indicate to the server that I am a client
+		except Exception,e:
+			print "Error indicating server that I am a client ",e
+
+
 		self.board = Board()
 		self.lock = Semaphore()
 		self.dead = False
