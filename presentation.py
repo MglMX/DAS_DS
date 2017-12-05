@@ -1,0 +1,29 @@
+from utils import *
+from clientAI import clientAI
+import client
+
+from threading import *
+
+def handleClient():
+	s = client.Client(MED_LIST,reuse_gui=clientAI(graphical=False)) #Comment in order to not use AI
+	while 1:
+		status = s.runGame()
+		if s.lookupAnotherServer: #Server crashed or something
+			s = client.Client(MED_LIST, reuse_id=s.id, reuse_gui=s.gui)
+		elif s.dead:
+			break
+
+threads = []
+for i in range(100): #100 players
+	t = Thread(target=handleClient)
+	t.setDaemon(True)
+	t.start()
+	threads.append(t)
+
+s = client.Client(MED_LIST)
+s.runGame()
+
+for t in threads:
+	t.join()
+
+print 'Done'

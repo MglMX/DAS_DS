@@ -22,6 +22,8 @@ class Gui:
 					pygame.draw.rect(self.screen, (int(unitBoard[x][y].hp*2.55),0,0), (x*self.scale[0],y*self.scale[1], self.scale[0], self.scale[1]))
 				elif unitBoard[x][y].name == 'player':
 					pygame.draw.rect(self.screen, (0,0,int(unitBoard[x][y].hp*12.7)), (x*self.scale[0],y*self.scale[1], self.scale[0],self.scale[1]))
+					#Switch case event for movement
+		pygame.display.flip()
 	def handleEvents(self, play, board):
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:

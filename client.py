@@ -115,6 +115,7 @@ class Client:
 					ap = player["ap"]
 					player = Player(x,y,u_id)
 					if u_id == self.id:
+						print '\nI was spawned\n'
 						player.isUser=True
 						self.spawned = True
 						self.player = player
@@ -211,7 +212,7 @@ class Client:
 		t.setDaemon(True)
 
 		
-		s.receiveBoard()
+		self.receiveBoard()
 
 		self.changed = 1
 		t.start() #Start daemon after receiving the full board
@@ -254,17 +255,14 @@ class Client:
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": cmd, "id": target.id}}))
 			self.lock.release()
 
-			#Switch case event for movement
-			pygame.display.flip()
 
 
-
-
-s = Client(MED_LIST)
-#s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
-while 1:
-	status = s.runGame()
-	if s.lookupAnotherServer: #Server crashed or something
-		s = Client(MED_LIST, reuse_id=s.id, reuse_gui=s.gui)
-	elif s.dead:
-		break
+if __name__ == "__main__":
+	s = Client(MED_LIST)
+	#s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
+	while 1:
+		status = s.runGame()
+		if s.lookupAnotherServer: #Server crashed or something
+			s = Client(MED_LIST, reuse_id=s.id, reuse_gui=s.gui)
+		elif s.dead:
+			break

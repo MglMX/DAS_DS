@@ -47,17 +47,19 @@ class ClientConn:
 			if board.board[x][y].name == 'empty':
 				break
 		player = Player(x, y, self.id)
+		print '\n\nCreated client in',x,y,self.id
 		#board.insertObject(player)
 		return player
 
 	def removePlayer(self):
 		''' Despawn player and remove it from clients list. FIXME: concurrency problems '''
 		self.server.board.board[self.player.x][self.player.y] = Empty(self.player.x, self.player.y)
-		self.server.clients.remove(self)
-		self.server.players_number -= 1
+		if self in self.server.clients:
+			self.server.clients.remove(self)
+			self.server.players_number -= 1
 
 		#broadcast despawn
-		self.server.broadcastCommand({"cmd": "despawn", "id": self.id})
+		self.server.broadcastCommand({"cmd": "despawn", "id": self.id, "timestamp":self.server.timer.getTime()}) #FIXME too heavy
 
 	def checkIdle(self, curr_time):
 		return curr_time-self.lastTimeReport > 70 #AFK X seconds = disconnnect. FIXME
@@ -119,6 +121,23 @@ class HandleClientsState():
 				if not self.server.checkIfSocketAlreadySaved(conn):
 					self.server.neighbours.append(ServerConn(conn,self.server,addr[0],addr[1])) #addr = (ip,port)
 					log.println("Connection accepted from a server and socket created",1)
+				if message["content"]["giveMeBoard"]: #FIXME - receiving the board should probably be here
+					commandList = []
+					for command in self.server.tss.trailingStates[-1].commands:
+						if command.cmd == "move":
+							jsonCommand = {"type": "command", "content": {"cmd": command.cmd, "timestamp": command.timestamp, "id": command.who, "where": command.where}}
+						elif command.cmd in ("heal", "damage"):
+							jsonCommand = {"type": "command", "content": {"cmd": command.cmd, "timestamp": command.timestamp, "id": command.target, "subject": command.who}}
+						elif command.cmd == "spawn":
+							jsonCommand = {"type": "command", "content": {"cmd": command.cmd, "timestamp": command.timestamp, "player": command.unit}}
+						elif command.cmd == "despawn":
+							jsonCommand = {"type": "command", "content": {"cmd": command.cmd, "timestamp": command.timestamp, "id": command.who}}
+						else:
+							print 'WHAT?',command.cmd
+
+						commandList.append(jsonCommand)
+					message = json.dumps({"type":"InitialBoard", "content":{"board": self.server.tss.trailingStates[-1].board.getBoard(), "commands": commandList}})
+					send(conn, message)
 
 
 
@@ -181,17 +200,12 @@ class HandleClientsState():
 			if server.conn in readable:
 				try:
 					command = receive(server.conn)
-					if command["type"] == "giveMeYourBoard": #FIXME - receiving the board should probably be here
-						#1st: give the board of the last trailing state
-						#2nd: give the position of the dragons
-						#3rd: send all commands that were not executed in the last trailing state
-						continue
 
 					assert command["type"] == "command" #Server should otherwise only send commands to each other probably
 					#FIXME check the last time it sent report? probably should do the trick described in broadcastCommand instead
 					self.server.tss.addCommand(command, command["timestamp"]) #FIXME - add server ID probably to solve conflicts and flag saying its a foreign command and shouldt be broadcasted again
 				except Exception, e:
-					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
+					log.println("Error handling server commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
 					#FIXME Remove server from list or whatever
 		for client in toRemove:
 			client.removePlayer()
@@ -210,6 +224,7 @@ class HandleClientsState():
 				return
 			elif current > self.server.nextTime:
 				self.server.time += 1
+				self.server.nextTime = self.server.timer.getTime() + 1 #FIXME time until next turn
 				commands = self.server.board.dragonsAI(self.server.time)
 				if commands:
 					for command in commands:
@@ -238,7 +253,7 @@ class HandleClientsState():
 					#self.server.neighbours = message["content"]["servers"]
 					neighboursList = message["content"]["servers"] #(ip,port)
 
-					self.server.createServerSocket(neighboursList)
+					#self.server.createServerSocket(neighboursList) #Dont do this anymore here
 
 					log.println('Server neighbour list updated: '+str(self.server.neighbours), 1, ['update'])
 				elif message["type"] == "Error":
@@ -301,15 +316,14 @@ class InitialState():
 			message = receive(self.server.med_sock)
 			assert message["type"] == 'ServerList'
 			neighbours = message["content"]["servers"]
-			if len(neighbours) == 1: #If the server is the only one in the network it should generate the board and spawn the dragons
-				#self.board = Board()
-				#self.spawnDragons()
-				log.println("I am the first server in the network. I should create the board", 1)
-			else: #if not it should ask for the board to another server
-				self.server.createServerSocket(neighbours)
+			self.server.curr_id = len(neighbours)*1000
+			if len(neighbours) != 1: #If the server is the only one in the network it should generate the board and spawn the dragons
 				log.println("I am not the first in the networkd. I should ask for the board.", 1)
+				self.server.createServerSocket(neighbours)
 				#neighbourConn = random.choice(self.server.neighbours) #FIXME Choose any of the neighbours to ask for the board. May cause problems
-
+			else:
+				print 'SPAWNING dragons'
+				self.server.spawnDragons()
 
 
 		except Exception, e:
@@ -345,7 +359,6 @@ class Server:
 		self.clients = []
 
 		self.tss = TSS(self)
-		self.spawnDragons()
 
 	def spawnDragons(self):
 		i = 0
@@ -370,17 +383,47 @@ class Server:
 					break
 
 			if not alreadyCreated and (serverIpPort[0] != self.local_ip or (serverIpPort[0] == self.local_ip and serverIpPort[1] != self.local_port)):  # if it is not created and it is not myself
+				receivedBoard = False
 				try:
 					log.println("New server added to the list of servers", 1)
 					serverSocket = socket(AF_INET, SOCK_STREAM)
 					serverSocket.connect((serverIpPort[0], serverIpPort[1]))  # serverIpPort = (ip,port)
 
 					server_connection = json.dumps(
-						{"type": "ConnectionToServer", "content": {"nodeType": 1}})
+						{"type": "ConnectionToServer", "content": {"nodeType": 1, "giveMeBoard": not receivedBoard}})
 					try:
 						send(serverSocket, server_connection)  # Indicate to the server that I am a server
+						message = receive(serverSocket)
+						if message["type"] == "InitialBoard":
+							receivedBoard = True
+							#Receive board here
+							board = message["content"]["board"] #List of list of tuples
+							commands = message["content"]["commands"]
+							#Replace boards
+							for ts in self.tss.trailingStates:
+								for x in range(25):
+									for y in range(25):
+										if board[x][y][0] == 'dragon':
+											newDragon = Dragon(x, y, board[x][y][1])
+											newDragon.hp = board[x][y][2]
+											newDragon.ap = board[x][y][3]
+											ts.board.insertObject(newDragon)
+
+										elif board[x][y][0] == 'player':
+											newPlayer = Player(x, y, board[x][y][1])
+											newPlayer.hp = board[x][y][2]
+											newPlayer.ap = board[x][y][3]
+											ts.board.insertObject(newPlayer)
+							
+							#Add commands
+							for command in commands:
+								self.tss.addCommand(command, command["timestamp"]) #FIXME id of server should be put there when sending the board
+
+
+
+
 					except Exception, e:
-						log.println("Error indicating server that I am a client " + str(e), 1, ['Error'])
+						log.println("Error indicating server that I am a server " + str(e), 1, ['Error'])
 
 					self.neighbours.append(
 						ServerConn(serverSocket, self, serverIpPort[0], serverIpPort[1]))
@@ -455,7 +498,7 @@ class Server:
 
 		for server in self.neighbours:
 			try:
-				send(client.conn, json.dumps({"type": "command", "content": command}))
+				send(server.conn, json.dumps({"type": "command", "content": command}))
 			except Exception, e:
 				log.println("Error broadcasting command to server: " + str(e), 2, ['error'])
 				#FIXME remove server from list. OR, when you receive the list and there's one server that you're connected to but it's not there, then remove it from the list

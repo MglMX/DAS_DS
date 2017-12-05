@@ -6,40 +6,46 @@ TIME_BETWEEN_COMMANDS = 0.25
 pygame.init()
 
 class clientAI:
-    def __init__(self):
-        self.WIDTH = 500
-        self.HEIGHT = 500
-        self.scale = (self.WIDTH / 25, self.HEIGHT / 25)
-        self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
+    def __init__(self, graphical=True):
+        self.graphical = graphical
+        if self.graphical:
+            self.WIDTH = 500
+            self.HEIGHT = 500
+            self.scale = (self.WIDTH / 25, self.HEIGHT / 25)
+            self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
 
     def drawLines(self):
-        self.screen.fill((0, 0, 0))  # Clear screen
-        for x in range(25):
-            pygame.draw.line(self.screen, (255, 255, 255), (x * self.scale[0], 0), (x * self.scale[0], self.HEIGHT))
-            pygame.draw.line(self.screen, (255, 255, 255), (0, x * self.scale[1]), (self.WIDTH, x * self.scale[1]))
-
+        if self.graphical:
+            self.screen.fill((0, 0, 0))  # Clear screen
+            for x in range(25):
+                pygame.draw.line(self.screen, (255, 255, 255), (x * self.scale[0], 0), (x * self.scale[0], self.HEIGHT))
+                pygame.draw.line(self.screen, (255, 255, 255), (0, x * self.scale[1]), (self.WIDTH, x * self.scale[1]))
+                        #Switch case event for movement
+            pygame.display.flip()
     def drawUnits(self, unitBoard):
-        for x in range(25):
-            for y in range(25):
-                if unitBoard[x][y].name == 'dragon':
-                    pygame.draw.rect(self.screen, (int(unitBoard[x][y].hp * 2.55), 0, 0),
-                                     (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
-                elif unitBoard[x][y].name == 'player':
-                    if unitBoard[x][y].isUser:
-                        pygame.draw.rect(self.screen, (0, int(unitBoard[x][y].hp * 12.7), 0),
-                                     (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
-                    else:
-                        pygame.draw.rect(self.screen, (0, 0, int(unitBoard[x][y].hp * 12.7)),
-                                     (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
+        if self.graphical:
+            for x in range(25):
+                for y in range(25):
+                    if unitBoard[x][y].name == 'dragon':
+                        pygame.draw.rect(self.screen, (int(unitBoard[x][y].hp * 2.55), 0, 0),
+                                         (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
+                    elif unitBoard[x][y].name == 'player':
+                        if unitBoard[x][y].isUser:
+                            pygame.draw.rect(self.screen, (0, int(unitBoard[x][y].hp * 12.7), 0),
+                                         (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
+                        else:
+                            pygame.draw.rect(self.screen, (0, 0, int(unitBoard[x][y].hp * 12.7)),
+                                         (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
 
     def handleEvents(self,player,board):
         time.sleep(TIME_BETWEEN_COMMANDS)
 
         dragon = self.getClosestDragon(board,player)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+        if self.graphical:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
 
         if dragon is None: #All dragons are killed so there is no closest dragon
             return 5 #Indicating that the client should disconnect

@@ -51,7 +51,7 @@ class DamageCommand:
 				board.board[target.x][target.y] = Empty(obj.x, obj.y)
 				self.result = {"x":target.x, "y": target.y, "player": None} #There is no player at x,y
 				self.antiCommand = {"cmd": "spawn", "player": oldPlayer}
-				return {"cmd": "despawn", "id": target.id}
+				return {"cmd": "despawn", "id": target.id, "timestamp": self.timestamp}
 class HealCommand:
 	def __init__(self, who, target):
 		self.cmd = "heal"
@@ -68,7 +68,7 @@ class HealCommand:
 			obj.healDamage(board, target.x, target.y)
 			self.result = {"id": self.target, "hp": target.hp} #It means now id has hp
 			self.antiCommand = {"cmd": "damage", "subject": self.who, "id":self.target}
-			return {"cmd": "heal", "subject": self.who, "id": self.target, "finalHP": target.hp} #Broadcast this to servers and clients
+			return {"cmd": "heal", "subject": self.who, "id": self.target, "finalHP": target.hp, "timestamp": self.timestamp} #Broadcast this to servers and clients
 
 class SpawnCommand:
 	def __init__(self, unit):
@@ -91,7 +91,7 @@ class SpawnCommand:
 			board.insertObject(player)
 			self.result = {"x":x, "y":y,"player": self.unit} #There is a player in x,y
 			self.antiCommand = {"cmd": "despawn", "id":u_id}
-			return {"cmd": "spawn", "player": self.unit} #Broadcast this to servers and clients
+			return {"cmd": "spawn", "player": self.unit, "timestamp": self.timestamp} #Broadcast this to servers and clients
 
 class DespawnCommand:
 	def __init__(self, who):
@@ -109,7 +109,7 @@ class DespawnCommand:
 			board.board[obj.x][obj.y] = Empty(obj.x, obj.y)
 			self.result = {"x":x, "y": y, "player": None} #There is no player at x,y
 			self.antiCommand = {"cmd": "spawn", "player": oldPlayer}
-			return {"cmd": "despawn", "id": self.who}
+			return {"cmd": "despawn", "id": self.who, "timestamp": self.timestamp}
 
 
 
@@ -139,6 +139,7 @@ def createCmd(command, curr_time):
 		return
 	res.timestamp = curr_time #Timestamp added to each command
 	res.result = None #When result is none, the command wasn't executed
+	res.issuedBy = None #Server id that issued this command
 	return res
 
 
@@ -161,7 +162,17 @@ class TrailingState:
 		for i in range(len(self.commands)): #Find the place to put the command
 			if self.commands[i].timestamp > command.timestamp: #FIXME - SOLVE CONFLICTS CRITICAL: while timestamps are equal, go back, unless there's a command of the same type but the serverID is lower or something 
 				break
+
+		while i > 0:
+			#FIXME Instead of this, compare if the id of the server who sent the command[i] is higher than this server. If so, break the while
+				
+			i -= 1
+			if self.commands[i].timestamp < command.timestamp:
+				i += 1
+				break
+
 		self.commands = self.commands[:i] + [command] + self.commands[i:]
+
 	def executeCommands(self, curr_time):
 		''' Also check for inconsistencies. Rollback if needed '''
 		commandsToBroadCast = []
@@ -201,4 +212,5 @@ class TSS:
 		for ts in self.trailingStates:
 			toBroadCast = ts.executeCommands(curr_time)
 			for cmd in toBroadCast:
-				self.server.broadcastCommand(cmd)
+				#if cmd.issuedBy == (self.server.local_ip,self.server.local_port): FIXME use me
+				self.server.broadcastCommand(cmd) #We only want to broadcast commands sent by this server
