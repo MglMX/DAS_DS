@@ -110,7 +110,7 @@ class HandleClientsState():
 		#Send board and player ID
 
 		client = ClientConn(conn, self.server)
-		board = json.dumps({"type": "board", "content": {"ID": client.id, "board": self.server.board.getBoard()}})
+		board = json.dumps({"type": "board", "content": {"ID": client.id, "board": self.server.tss.trailingStates[0].board.getBoard()}})
 		send(conn, board)
 
 		#Broadcast spawn command to everyone except the client itself
@@ -119,12 +119,12 @@ class HandleClientsState():
 		u_id = client.player.id
 		hp = client.player.hp
 		ap = client.player.ap
-		self.server.broadcastCommand({"cmd": "spawn", "player": {"x":x,"y":y,"id":u_id,"hp":hp,"ap":ap}}, exceptClient=client)
 	
 		#Add player to list of clients
 		self.server.players_number += 1
 		self.server.clients.append(client)
 		print 'CLIENT.PLAYER.AP', client.player.ap
+		return {"type": "command", "content": {"cmd": "spawn", "player": {"x":x,"y":y,"id":u_id,"hp":hp,"ap":ap}}}
 
 	def validMove(self, pos):
 		if pos[0] > -1 and pos[0] < 25 and pos[1] > -1 and pos[1] < 25:
@@ -140,53 +140,58 @@ class HandleClientsState():
 				try:
 					command = receive(client.conn)
 					assert command["type"] == "command"
-					command = command["content"]
-					if command["cmd"] == "move":
-						u_id = command["id"]
-						pos = command["where"]
-						if self.validMove(pos) and self.server.board.board[pos[0]][pos[1]].name == 'empty':
-							self.server.board.movePlayer(u_id, pos) 
-							self.server.broadcastCommand(command)
+					
+					if command["content"]["cmd"] in ("damage", "heal"):
+						command["content"]["subject"] = client.id
+					self.server.tss.addCommand(command, curr_time) #FIXME - when a dragon is hit, it might die and we have to broadcast the despawn, etc
 
-					elif command["cmd"] == "heal":
-						u_id = command["id"]
-						#Heal player
-						obj = self.server.board.findObject(u_id)
-						x = obj.x
-						y = obj.y
-						if(abs(client.player.x - x) + abs(client.player.y - y ) <= 5): #Check if the player is within right distance
-							client.player.healDamage(self.server.board, x, y)
-							command["finalHP"] = obj.hp
-							self.server.broadcastCommand(command)
-					elif command["cmd"] == "damage":
-						u_id = command["id"]
-						#Damage dragon
-						obj = self.server.board.findObject(u_id)
-						if not obj:
-							continue
-						x = obj.x
-						y = obj.y
-						if(abs(client.player.x - x) + abs(client.player.y - y ) <= 2): #Check if the dragon is within right distance
-							client.player.dealDamage(self.server.board, x, y)
-							print "HP for dragon is", self.server.board.board[obj.x][obj.y].hp
-							if self.server.board.board[obj.x][obj.y].hp <= 0:
-								print 'remove object'
-								self.server.broadcastCommand({"cmd": "despawn", "id": self.server.board.board[obj.x][obj.y].id})
-								self.server.board.board[x][y] = Empty(x,y)
-							else:
-								command["finalHP"] = obj.hp #idempotent
-								self.server.broadcastCommand(command)
-					elif command["cmd"] == "disconnect":
-						u_id = command["id"]
-						self.server.board.deleteObject(u_id)
-						log.println("Player: "+u_id+" deleted from the board",1)
-						toRemove.append(client)
-					client.lastTimeReport = curr_time
+					#if command["cmd"] == "move":
+					#	u_id = command["id"]
+					#	pos = command["where"]
+					#	if self.validMove(pos) and self.server.board.board[pos[0]][pos[1]].name == 'empty':
+					#		self.server.board.movePlayer(u_id, pos) 
+					#		self.server.broadcastCommand(command)
+
+					#elif command["cmd"] == "heal":
+					#	u_id = command["id"]
+					#	#Heal player
+					#	obj = self.server.board.findObject(u_id)
+					#	x = obj.x
+					#	y = obj.y
+					#	if(abs(client.player.x - x) + abs(client.player.y - y ) <= 5): #Check if the player is within right distance
+					#		client.player.healDamage(self.server.board, x, y)
+					#		command["finalHP"] = obj.hp
+					#		self.server.broadcastCommand(command)
+					#elif command["cmd"] == "damage":
+					#	u_id = command["id"]
+					#	#Damage dragon
+					#	obj = self.server.board.findObject(u_id)
+					#	if not obj:
+					#		continue
+					#	x = obj.x
+					#	y = obj.y
+					#	if(abs(client.player.x - x) + abs(client.player.y - y ) <= 2): #Check if the dragon is within right distance
+					#		client.player.dealDamage(self.server.board, x, y)
+					#		print "HP for dragon is", self.server.board.board[obj.x][obj.y].hp
+					#		if self.server.board.board[obj.x][obj.y].hp <= 0:
+					#			print 'remove object'
+					#			self.server.broadcastCommand({"cmd": "despawn", "id": self.server.board.board[obj.x][obj.y].id})
+					#			self.server.board.board[x][y] = Empty(x,y)
+					#		else:
+					#			command["finalHP"] = obj.hp #idempotent
+					#			self.server.broadcastCommand(command)
+					#elif command["cmd"] == "disconnect":
+					#	u_id = command["id"]
+					#	self.server.board.deleteObject(u_id)
+					#	log.println("Player: "+u_id+" deleted from the board",1)
+					#	toRemove.append(client)
+					#client.lastTimeReport = curr_time
 				except Exception, e:
 					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
 					toRemove.append(client)
 		for client in toRemove:
 			client.removePlayer()
+		self.server.tss.executeCommands(curr_time)
 
 
 	def run(self):
@@ -200,17 +205,10 @@ class HandleClientsState():
 				return
 			elif current > self.server.nextTime:
 				self.server.time += 1
-				players = self.server.board.dragonsAI(self.server.time)
-				if players:
-					for player in players:
-						print 'IM HERE!'
-						if player.hp == 0:
-							print ':)'
-							self.server.broadcastCommand({"cmd": "despawn", "id": player.id})
-						else:
-							print ':('
-							self.server.broadcastCommand({"cmd": "damage", "id": player.id, "finalHP": player.hp})
-
+				commands = self.server.board.dragonsAI(self.server.time)
+				if commands:
+					for command in commands:
+						self.server.tss.addCommand(command, current)
 
 			toCheck = [i.conn for i in self.server.clients]
 			toCheck.append(self.server.sock)
@@ -219,7 +217,8 @@ class HandleClientsState():
 			
 			if self.server.sock in readable:
 				try:
-					self.handleNewClient()
+					command = self.handleNewClient()
+					self.server.tss.addCommand(command, current)
 				except Exception,e:
 					log.println('Error receiving client: '+str(e), 1, ['error'])
 
@@ -315,18 +314,19 @@ class Server:
 		self.nextTime = self.timer.getTime() + 1 #FIXME time until next turn
 		self.curr_id = 1 #Next ID to assign
 		#################
-		self.spawnDragons()
 		self.clients = []
 
 		self.tss = TSS(self)
+		self.spawnDragons()
 
 	def spawnDragons(self):
 		i = 0
 		while i < DRAGONS_TO_SPAWN:
 			x = random.randint(0,24)
 			y = random.randint(0,24)
-			if self.board.board[x][y].name == 'empty':
-				self.board.insertObject(Dragon(x,y,self.curr_id))
+			if self.tss.trailingStates[0].board.board[x][y].name == 'empty':
+				for tss in self.tss.trailingStates:
+					tss.board.insertObject(Dragon(x,y,self.curr_id))
 				self.curr_id += 1
 				i += 1
 

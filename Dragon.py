@@ -28,7 +28,7 @@ class Dragon(Unit):
 			self.nextTurn = self.turn + random.randint(MIN_TIME_BETWEEN_TURNS, MAX_TIME_BETWEEN_TURNS)
 
 			if self.hp <= 0: #If dragon is dead, do nothing
-				return 0
+				return None
 
 			adjPlayers = []
 			for x in range(25):
@@ -37,9 +37,9 @@ class Dragon(Unit):
 						adjPlayers.append((x,y))
 			if adjPlayers: #Attack player
 				player = random.choice(adjPlayers)
-				self.dealDamage(board, player[0], player[1])
-				print 'DEALING DAMAGE TO PLAYER:',board.board[player[0]][player[1]].hp,self.ap
-				return board.board[player[0]][player[1]]
+				#self.dealDamage(board, player[0], player[1])
+				#print 'DEALING DAMAGE TO PLAYER:',board.board[player[0]][player[1]].hp,self.ap
+				return {"type": "command", "content": {"cmd": "damage", "subject": self.id, "id": board.board[player[0]][player[1]].id}} #FIXME
 
 
-		return 0
+		return None

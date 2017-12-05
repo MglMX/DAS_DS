@@ -98,6 +98,7 @@ class Client:
 
 				elif command["cmd"] == "spawn" : #SPAWN CMD
 					player = command["player"]
+					print 'Spawning:',player
 					x = player["x"]
 					y = player["y"]
 					u_id = player["id"]

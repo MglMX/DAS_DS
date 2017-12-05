@@ -53,11 +53,11 @@ class Board:
 					return (x,y)
 
 	def dragonsAI(self, time):
-		affectedPlayers = []
+		commands = []
 		for x in range(25):
 			for y in range(25):
 				if self.board[x][y].name == 'dragon':
-					player = self.board[x][y].doAction(self, time)
-					if player:
-						affectedPlayers.append(player)
-		return affectedPlayers
+					command = self.board[x][y].doAction(self, time)
+					if command:
+						commands.append(command)
+		return commands
