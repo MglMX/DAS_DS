@@ -177,6 +177,22 @@ class HandleClientsState():
 				except Exception, e:
 					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
 					toRemove.append(client)
+		for server in self.server.neighbours:
+			if server.conn in readable:
+				try:
+					command = receive(server.conn)
+					if command["type"] == "giveMeYourBoard": #FIXME - receiving the board should probably be here
+						#1st: give the board of the last trailing state
+						#2nd: give the position of the dragons
+						#3rd: send all commands that were not executed in the last trailing state
+						continue
+
+					assert command["type"] == "command" #Server should otherwise only send commands to each other probably
+					#FIXME check the last time it sent report? probably should do the trick described in broadcastCommand instead
+					self.server.tss.addCommand(command, command["timestamp"]) #FIXME - add server ID probably to solve conflicts and flag saying its a foreign command and shouldt be broadcasted again
+				except Exception, e:
+					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
+					#FIXME Remove server from list or whatever
 		for client in toRemove:
 			client.removePlayer()
 		self.server.tss.executeCommands(curr_time)
@@ -202,6 +218,8 @@ class HandleClientsState():
 			toCheck = [i.conn for i in self.server.clients]
 			toCheck.append(self.server.sock)
 			toCheck.append(self.server.med_sock)
+			for server in self.server.neighbours:
+				toCheck.append(server.conn)
 			readable, writeable, error = select.select(toCheck, [], [], (self.TIME_BETWEEN_REPORT+begin-current))
 			
 			if self.server.sock in readable:
@@ -432,8 +450,16 @@ class Server:
 				try:
 					send(client.conn, json.dumps({"type": "command", "content": command}))
 				except Exception, e:
-					log.println("Error broadcasting command: " + str(e), 2, ['error'])
+					log.println("Error broadcasting command to client: " + str(e), 2, ['error'])
 					toRemove.append(client)
+
+		for server in self.neighbours:
+			try:
+				send(client.conn, json.dumps({"type": "command", "content": command}))
+			except Exception, e:
+				log.println("Error broadcasting command to server: " + str(e), 2, ['error'])
+				#FIXME remove server from list. OR, when you receive the list and there's one server that you're connected to but it's not there, then remove it from the list
+
 		for client in toRemove:
 			client.removePlayer()
 
