@@ -25,7 +25,7 @@ class MoveCommand:
 			obj.y = y
 			self.result = {"id":self.who, "where": self.where} #It means now id is where
 			self.antiCommand = {"cmd": "move", "where": oldPosition}
-			return {"cmd": "move", "where": self.where, "id": self.who, "timestamp": self.timestamp} #Broadcast this to servers and clients
+			return {"cmd": "move", "where": self.where, "id": self.who} #Broadcast this to servers and clients
 
 class DamageCommand:
 	def __init__(self, who, target):
@@ -51,7 +51,7 @@ class DamageCommand:
 				board.board[target.x][target.y] = Empty(obj.x, obj.y)
 				self.result = {"x":target.x, "y": target.y, "player": None} #There is no player at x,y
 				self.antiCommand = {"cmd": "spawn", "player": oldPlayer}
-				return {"cmd": "despawn", "id": target.id, "timestamp": self.timestamp}
+				return {"cmd": "despawn", "id": target.id}
 class HealCommand:
 	def __init__(self, who, target):
 		self.cmd = "heal"
@@ -68,7 +68,7 @@ class HealCommand:
 			obj.healDamage(board, target.x, target.y)
 			self.result = {"id": self.target, "hp": target.hp} #It means now id has hp
 			self.antiCommand = {"cmd": "damage", "subject": self.who, "id":self.target}
-			return {"cmd": "heal", "subject": self.who, "id": self.target, "finalHP": target.hp, "timestamp": self.timestamp} #Broadcast this to servers and clients
+			return {"cmd": "heal", "subject": self.who, "id": self.target, "finalHP": target.hp} #Broadcast this to servers and clients
 
 class SpawnCommand:
 	def __init__(self, unit):
@@ -91,7 +91,7 @@ class SpawnCommand:
 			board.insertObject(player)
 			self.result = {"x":x, "y":y,"player": self.unit} #There is a player in x,y
 			self.antiCommand = {"cmd": "despawn", "id":u_id}
-			return {"cmd": "spawn", "player": self.unit, "timestamp": self.timestamp} #Broadcast this to servers and clients
+			return {"cmd": "spawn", "player": self.unit} #Broadcast this to servers and clients
 
 class DespawnCommand:
 	def __init__(self, who):
@@ -107,9 +107,9 @@ class DespawnCommand:
 			print '\nDESPAWNING\n'
 			oldPlayer = {"x": obj.x, "y": obj.y, "id": obj.id, "hp": obj.hp, "ap": obj.ap}
 			board.board[obj.x][obj.y] = Empty(obj.x, obj.y)
-			self.result = {"x":x, "y": y, "player": None} #There is no player at x,y
+			self.result = {"x":obj.x, "y": obj.y, "player": None} #There is no player at x,y
 			self.antiCommand = {"cmd": "spawn", "player": oldPlayer}
-			return {"cmd": "despawn", "id": self.who, "timestamp": self.timestamp}
+			return {"cmd": "despawn", "id": self.who}
 
 
 
@@ -187,6 +187,7 @@ class TrailingState:
 						pass #SIGNAL ROLLBACK HERE - TODO
 				elif toBroadCast:
 					toBroadCast["issuedBy"] = command.issuedBy
+					toBroadCast["timestamp"] = command.timestamp
 					commandsToBroadCast.append(toBroadCast)
 					print 'goingToBroadCast:',toBroadCast
 		return commandsToBroadCast
