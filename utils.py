@@ -3,7 +3,7 @@ import json
 from socket import timeout
 from gameLog import Logger
 
-log = Logger(1, 'send')
+log = Logger(1)
 
 MED_LIST = [('localhost', 6969), ('localhost', 6970)] #FIXME at deployment --> This is the list of mediator (first element) and its replicas
 

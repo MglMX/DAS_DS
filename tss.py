@@ -46,9 +46,9 @@ class DamageCommand:
 				self.antiCommand = {"cmd": "heal", "subject": self.who, "id":self.target}
 				return {"cmd": "damage", "subject": self.who, "id": self.target, "finalHP": target.hp} #Broadcast this to servers and clients
 			else:
-				print '\nDAMAGING\n\n'
+				print '\n',target.name,'DEAD\n\n'
 				oldPlayer = {"x": target.x, "y": target.y, "id": target.id, "hp": target.hp, "ap": target.ap}
-				board.board[obj.x][obj.y] = Empty(obj.x, obj.y)
+				board.board[target.x][target.y] = Empty(obj.x, obj.y)
 				self.result = {"x":target.x, "y": target.y, "player": None} #There is no player at x,y
 				self.antiCommand = {"cmd": "spawn", "player": oldPlayer}
 				return {"cmd": "despawn", "id": target.id}
@@ -104,6 +104,7 @@ class DespawnCommand:
 			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
+			print '\nDESPAWNING\n'
 			oldPlayer = {"x": obj.x, "y": obj.y, "id": obj.id, "hp": obj.hp, "ap": obj.ap}
 			board.board[obj.x][obj.y] = Empty(obj.x, obj.y)
 			self.result = {"x":x, "y": y, "player": None} #There is no player at x,y
@@ -172,7 +173,7 @@ class TrailingState:
 				toBroadCast = command.execute(self.board) #check result from this and the preceding state. if they differ, signal rollback
 				if command.preceding: #If there's a preceding state
 					if command.result != command.preceding.result:
-						pass #SIGNAL ROLLBACK HERE - T
+						pass #SIGNAL ROLLBACK HERE - TODO
 				elif toBroadCast:
 					commandsToBroadCast.append(toBroadCast)
 					print 'goingToBroadCast:',toBroadCast
