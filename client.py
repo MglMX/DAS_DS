@@ -91,6 +91,7 @@ class Client:
 
 				assert command["type"] == "command"
 				command = command["content"]
+
 				self.lock.acquire()
 
 				if command["cmd"] == "move": #MOVE CMD
@@ -233,7 +234,7 @@ class Client:
 				self.gui.drawLines()			 #Draw grid
 				self.gui.drawUnits(self.board.board)
 
-			event = self.gui.handleEvents(self.player, self.board.board)
+			event = self.gui.handleEvents(self.player, self.board.board, self.lock)
 			if event != 0:
 				self.changed = 1
 			
@@ -242,6 +243,7 @@ class Client:
 			elif event == 5: #Event for when all the dragons are killed
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "disconnect", "id": self.player.id}}))
 				print "All the dragons are killed. I will now exit"
+				self.lock.release()
 				sys.exit()
 			elif event != 0:
 				target = self.board.board[event[0]][event[1]]
@@ -250,6 +252,7 @@ class Client:
 				elif target.name == 'player':
 					cmd = "heal"
 				else:
+					self.lock.release()
 					continue
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": cmd, "id": target.id}}))
 			self.lock.release()
@@ -257,8 +260,8 @@ class Client:
 
 
 if __name__ == "__main__":
-	s = Client(MED_LIST)
-	#s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
+	#s = Client(MED_LIST)
+	s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
 	while 1:
 		status = s.runGame()
 		if s.lookupAnotherServer: #Server crashed or something

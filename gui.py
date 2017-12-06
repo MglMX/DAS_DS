@@ -21,10 +21,14 @@ class Gui:
 				if unitBoard[x][y].name == 'dragon':
 					pygame.draw.rect(self.screen, (int(unitBoard[x][y].hp*2.55),0,0), (x*self.scale[0],y*self.scale[1], self.scale[0], self.scale[1]))
 				elif unitBoard[x][y].name == 'player':
-					pygame.draw.rect(self.screen, (0,0,int(unitBoard[x][y].hp*12.7)), (x*self.scale[0],y*self.scale[1], self.scale[0],self.scale[1]))
-					#Switch case event for movement
+					if unitBoard[x][y].isUser:
+						pygame.draw.rect(self.screen, (0, int(unitBoard[x][y].hp * 12.7), 0),
+							(x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
+					else:
+						pygame.draw.rect(self.screen, (0, 0, int(unitBoard[x][y].hp * 12.7)),
+							(x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
 		pygame.display.flip()
-	def handleEvents(self, play, board):
+	def handleEvents(self, play, board,lock):
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				pygame.quit()

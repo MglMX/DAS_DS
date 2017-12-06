@@ -20,8 +20,7 @@ class clientAI:
             for x in range(25):
                 pygame.draw.line(self.screen, (255, 255, 255), (x * self.scale[0], 0), (x * self.scale[0], self.HEIGHT))
                 pygame.draw.line(self.screen, (255, 255, 255), (0, x * self.scale[1]), (self.WIDTH, x * self.scale[1]))
-                        #Switch case event for movement
-            pygame.display.flip()
+
     def drawUnits(self, unitBoard):
         if self.graphical:
             for x in range(25):
@@ -36,9 +35,10 @@ class clientAI:
                         else:
                             pygame.draw.rect(self.screen, (0, 0, int(unitBoard[x][y].hp * 12.7)),
                                          (x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
-
-    def handleEvents(self,player,board):
+    def handleEvents(self,player,board,lock):
+        lock.release()
         time.sleep(TIME_BETWEEN_COMMANDS)
+        lock.acquire()
 
         dragon = self.getClosestDragon(board,player)
         if self.graphical:
@@ -46,6 +46,7 @@ class clientAI:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+            pygame.display.flip()
 
         if dragon is None: #All dragons are killed so there is no closest dragon
             return 5 #Indicating that the client should disconnect
