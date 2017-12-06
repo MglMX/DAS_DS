@@ -203,7 +203,7 @@ class HandleClientsState():
 						command["content"]["subject"] = client.id
 
 					if command["content"]["cmd"] == "disconnect": #FIXME disconnect now should use the new board
-						u_id = command["id"]
+						u_id = command["content"]["id"]
 						toRemove.append(client)
 						self.server.tss.addCommand({"type": "command", "content": {"cmd": "despawn", "id": u_id}}, curr_time, server.sid)
 					else:

@@ -82,6 +82,12 @@ class clientAI:
                 for y in range(25):
                     if board[x][y].name == 'dragon':
                         self.dragons.append(board[x][y])
+        else:
+            dragons = [] #Update list
+            for dragon in self.dragons:
+                if board[dragon.x][dragon.y] == dragon:
+                    dragons.append(dragon)
+            self.dragons = dragons
 
         minimum_distance = 9999999
         closest_dragon = None
