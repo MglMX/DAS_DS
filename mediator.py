@@ -236,9 +236,10 @@ class Mediator:
 					try:
 						serverInfo = json.dumps({"type":"ServerInfo","content":{"ip":str(server[0]),"port":int(server[1])}})
 						send(conn, serverInfo) #This one :D
+						self.servers[server] = (self.servers[server][0]+1,self.servers[server][1],self.servers[server][2])
 						log.println("Information of the server sent to the client", 1, ['connection','debug'])
-					except:
-						pass
+					except Exception,e:
+						print e
 					break
 
 	def handleNewServerMsgs(self, can_recv):

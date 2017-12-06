@@ -9,9 +9,9 @@ from utils  import *
 import sys, time
 import select, random
 
-DRAGONS_TO_SPAWN = 2
+DRAGONS_TO_SPAWN = 20
 
-log = Logger(1, [])
+log = Logger(4, [])
 #log.println(msg, priority, keywords)
 
 class ServerConn:
@@ -228,7 +228,7 @@ class HandleClientsState():
 			elif current > self.server.nextTime:
 				self.server.time += 1
 				self.server.nextTime = self.server.timer.getTime() + 1 #FIXME time until next turn
-				commands = self.server.board.dragonsAI(self.server.time)
+				commands = self.server.tss.trailingStates[0].board.dragonsAI(self.server.time)
 				if commands:
 					for command in commands:
 						self.server.tss.addCommand(command, current, self.server.sid)
