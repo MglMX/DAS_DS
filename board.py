@@ -26,7 +26,6 @@ class Board:
 
 		x = player.x
 		y = player.y
-		print 'x:', x, 'y', y 
 
 		self.board[x][y] = Empty(x,y)
 		self.board[pos[0]][pos[1]] = player

@@ -176,9 +176,40 @@ class TrailingState:
 
 		self.commands = self.commands[:i] + [command] + self.commands[i:]
 
+	def executeRollBack(self, command):
+		#Copy the board from this ts to the preceding ts's.
+		return
+		board = self.board.getBoard()
+		self.preceding.board = Board()
+		for x in range(25):
+			for y in range(25):
+				if board[x][y][0] == 'dragon':
+					newDragon = Dragon(x, y, board[x][y][1])
+					newDragon.hp = board[x][y][2]
+					newDragon.ap = board[x][y][3]
+					self.preceding.board.insertObject(newDragon)
+
+				elif board[x][y][0] == 'player':
+					newPlayer = Player(x, y, board[x][y][1])
+					newPlayer.hp = board[x][y][2]
+					newPlayer.ap = board[x][y][3]
+					newPlayer.maxHP = board[x][y][4]
+					self.preceding.board.insertObject(newPlayer)
+
+		#Mark all the commands with timestamp > command.timestamp from the preceding ts as not executed
+		for i in range(len(self.preceding.commands),-1,-1):
+			commandPrec = self.preceding.commands[i]
+			if commandPrec.timestamp > command.timestamp:
+				commandPrec.result = None
+			else:
+				break
+
+		#If the real-time ts commands were marked as not executed, broadcast the antiCommands for the users
+
 	def executeCommands(self, curr_time):
 		''' Also check for inconsistencies. Rollback if needed '''
 		commandsToBroadCast = []
+		rollBack = None
 		for command in self.commands:
 			if command.timestamp > curr_time-self.delay:
 				break
@@ -187,11 +218,16 @@ class TrailingState:
 				toBroadCast = command.execute(self.board) #check result from this and the preceding state. if they differ, signal rollback
 				if command.preceding: #If there's a preceding state
 					if command.result != command.preceding.result:
-						pass #SIGNAL ROLLBACK HERE - TODO
+						rollBack = command
+						break
 				elif toBroadCast:
 					toBroadCast["issuedBy"] = command.issuedBy
 					toBroadCast["timestamp"] = command.timestamp
 					commandsToBroadCast.append(toBroadCast)
+
+		if rollBack:
+			self.executeRollBack(command)
+
 		return commandsToBroadCast
 
 class TSS:

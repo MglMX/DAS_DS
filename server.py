@@ -11,7 +11,7 @@ import select, random
 
 DRAGONS_TO_SPAWN = 20
 
-log = Logger(1, ['init'])
+log = Logger(1)
 #log.println(msg, priority, keywords)
 
 class ServerConn:
@@ -342,7 +342,7 @@ class InitialState():
 
 
 		except Exception, e:
-			log.println("Error in InitialState: " + str(e), 2, ['error', 'init'])
+			log.println("Error in InitialState: " + str(e) + str(type(e)), 2, ['error', 'init'])
 
 
 class Server:
