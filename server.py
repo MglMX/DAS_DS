@@ -50,7 +50,8 @@ class ClientConn:
 			if board.board[x][y].name == 'empty':
 				break
 		player = Player(x, y, self.id)
-		print '\n\nCreated client in',x,y,self.id
+		if "-v" in sys.argv:
+			print '\n\nCreated client in',x,y,self.id
 		#board.insertObject(player)
 		return player
 
@@ -74,6 +75,7 @@ class Timer:
 		self.timeDiff = 0 #Difference of time between server and mediator
 	def getTime(self):
 		return time.time()+self.timeDiff
+
 
 class SendReportState():
 	def __init__(self, server):
@@ -104,7 +106,7 @@ class SendReportState():
 			except Exception, e: #Mediator is inactive
 				log.println('Error: '+e, 1, ['error'])
 				self.server.state = InitialState(self.server) #Try to contact other mediator
-			
+
 
 class HandleClientsState():
 	''' All states have function "run" '''
@@ -112,7 +114,7 @@ class HandleClientsState():
 		self.server = server
 		self.stateName = "Handle Clients State"
 		self.TIME_BETWEEN_REPORT = 5 #X.   Each X seconds the server should send the mediator a report with the players that are connected
-	
+
 	def handleNewConnection(self, current):
 		conn, addr = self.server.sock.accept()
 		message = receive(conn)
@@ -136,13 +138,12 @@ class HandleClientsState():
 						elif command.cmd == "despawn":
 							jsonCommand = {"type": "command", "content": {"cmd": command.cmd, "timestamp": command.timestamp, "id": command.who}}
 						else:
-							print 'WHAT?',command.cmd
+							if "-v" in sys.argv:
+								print 'WHAT?',command.cmd
 						jsonCommand["content"]["issuedBy"] = command.issuedBy
 						commandList.append(jsonCommand)
 					message = json.dumps({"type":"InitialBoard", "content":{"board": self.server.tss.trailingStates[-1].board.getBoard(), "commands": commandList}})
 					send(conn, message)
-
-
 
 	def handleNewClient(self,conn):
 		''' First, accept connection. Then, send the board and the player ID '''
@@ -163,7 +164,7 @@ class HandleClientsState():
 		u_id = client.player.id
 		hp = client.player.hp
 		ap = client.player.ap
-	
+
 		#Add player to list of clients
 		self.server.players_number += 1
 		self.server.clients.append(client)
@@ -174,8 +175,6 @@ class HandleClientsState():
 			return True
 		return False
 
-
-
 	def handleCommands(self, readable, curr_time):
 		toRemove = []
 		for client in self.server.clients:
@@ -183,11 +182,11 @@ class HandleClientsState():
 				try:
 					command = receive(client.conn)
 					assert command["type"] == "command"
-					
+
 					client.lastTimeReport = curr_time
 					if command["content"]["cmd"] in ("damage", "heal"):
 						command["content"]["subject"] = client.id
-					
+
 					if command["content"]["cmd"] == "disconnect": #FIXME disconnect now should use the new board
 						u_id = command["id"]
 						self.server.board.deleteObject(u_id)
@@ -199,6 +198,7 @@ class HandleClientsState():
 				except Exception, e:
 					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
 					toRemove.append(client)
+
 		for server in self.server.neighbours:
 			if server.conn in readable:
 				try:
@@ -213,8 +213,6 @@ class HandleClientsState():
 		for client in toRemove:
 			client.remove()
 		self.server.tss.executeCommands(curr_time)
-
-
 
 	def run(self):
 		begin = self.server.timer.getTime()
@@ -239,7 +237,7 @@ class HandleClientsState():
 			for server in self.server.neighbours:
 				toCheck.append(server.conn)
 			readable, writeable, error = select.select(toCheck, [], [], (self.TIME_BETWEEN_REPORT+begin-current))
-			
+
 			if self.server.sock in readable:
 				try:
 					self.handleNewConnection(current)
@@ -269,6 +267,7 @@ class HandleClientsState():
 
 		self.server.state = SendReportState(self.server)
 
+
 class SynchronizeTimeState():
 	''' All states have function "run" '''
 	def __init__(self, server):
@@ -294,7 +293,8 @@ class SynchronizeTimeState():
 			assert T1["type"] == "Synch"
 			T1 = float(T1["content"])
 
-			print '\nx: ' + str(x) + ' | TIME AT MEDIATOR: ' + str(T1 + x/2) + '\n' #FIXME remove this print
+			if "-v" in sys.argv:
+				print '\nx: ' + str(x) + ' | TIME AT MEDIATOR: ' + str(T1 + x/2) + '\n' #FIXME remove this print
 
 			self.server.timer.timeDiff = T2 - (T1 + x/2)
 			self.server.timeToSynch = self.server.timer.getTime()+200 #FIXME each 200 seconds the server synchronizes
@@ -303,8 +303,6 @@ class SynchronizeTimeState():
 		except Exception, e:
 			log.println("Error in SynchronizeTimeState: " + str(e), 2, ['error', 'synch'])
 			self.server.state = InitialState(self.server)
-
-		
 
 
 class InitialState():
@@ -325,7 +323,8 @@ class InitialState():
 				self.server.createServerSocket(neighbours)
 				#neighbourConn = random.choice(self.server.neighbours) #FIXME Choose any of the neighbours to ask for the board. May cause problems
 			else:
-				print 'SPAWNING dragons'
+				if "-v" in sys.argv:
+					print 'SPAWNING dragons'
 				self.server.spawnDragons()
 
 
@@ -418,13 +417,10 @@ class Server:
 											newPlayer.hp = board[x][y][2]
 											newPlayer.ap = board[x][y][3]
 											ts.board.insertObject(newPlayer)
-							
+
 							#Add commands
 							for command in commands:
 								self.tss.addCommand(command, command["content"]["timestamp"], command["issuedBy"]) #FIXME id of server should be put there when sending the board
-
-
-
 
 					except Exception, e:
 						log.println("Error indicating server that I am a server " + str(e), 1, ['Error'])
@@ -436,7 +432,7 @@ class Server:
 
 			alreadyCreated = False
 
-			
+
 	def checkIfSocketAlreadySaved(self,socket):
 
 		alreadySaved = False
@@ -455,9 +451,10 @@ class Server:
 		s.close()
 		return res
 
-	def run(self): 
+	def run(self):
 		#State machine
 		self.state.run()
+
 	def publish(self):
 		''' Publish this server on the mediator allowing it to receive updates from other servers '''
 		errors = 0
@@ -479,7 +476,7 @@ class Server:
 					break
 				except Exception,e:
 					log.println('Mediator number %s is not active: %s' % (mediator,e), 1, ['publish'])
-					
+
 			else:
 				time.sleep(1)
 				log.println('There is no active mediator...', 3, ['publish'])
@@ -489,6 +486,7 @@ class Server:
 				else:
 					continue
 			break
+
 	def broadcastCommand(self, command, exceptClient=None, clientsOnly=False):
 		''' FIXME should group commands and send them all at once right?'''
 		toRemove = []
