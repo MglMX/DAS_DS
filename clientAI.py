@@ -112,7 +112,7 @@ class clientAI:
             for y in range(25):
                 unit = board[x][y]
                 if unit.name == 'player' and unit.id != player.id and self.distance((player.x, player.y), (unit.x, unit.y)) <= 5:
-                    if unit.hp / unit.maxHP < 0.5:  # The player has less than 50% of his life
+                    if float(unit.hp) / float(unit.maxHP) < 0.5:  # The player has less than 50% of his life
                         players_to_heal.append(unit)
 
         return players_to_heal

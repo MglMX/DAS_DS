@@ -17,11 +17,13 @@ class Client:
 
 		ip, port = self.getServer() #Fetch a server from the mediator
 
+		print 'Connecting to',ip,port
 		self.s = socket(AF_INET, SOCK_STREAM) 
 		self.s.connect((ip, port))  #Connect to server
 		self.s.settimeout(2) #FIXME timeout
 
-		server_connection = json.dumps({"type":"ConnectionToServer","content":{"nodeType":0}})
+		server_connection = json.dumps({"type":"ConnectionToServer","content":{"nodeType":0, "reuse_id": reuse_id}})
+
 		try:
 			send(self.s,server_connection) #Indicate to the server that I am a client
 		except Exception,e:
@@ -33,9 +35,6 @@ class Client:
 		self.dead = False
 		self.spawned = False #Necessary because a server might have trouble creating the client
 
-		if reuse_id:
-			self.id = reuse_id
-
 		self.changed = 0 #Board has changed
 		print 'Successfully connected.'
 		self.lookupAnotherServer = False
@@ -46,7 +45,6 @@ class Client:
 			self.gui = reuse_gui
 
 	def getServer(self):
-		print "Inside getServer"
 		errors = 0
 		while 1:
 			for mediator in range(len(self.med_list)): #Trying all the possible mediators.
@@ -60,7 +58,6 @@ class Client:
 					send(s, nodeType)
 					print "I indicated the mediator that I am a client"
 					message = receive(s)								#Receive server ip and port
-					print "Received server to connect to"
 					break								
 				except Exception, e:
 					print 'Mediator number %s is not active: %s' % (mediator,e)
@@ -141,19 +138,21 @@ class Client:
 					u_id = command["id"]
 					#Heal player
 					obj = self.board.findObject(u_id)
-					x = obj.x
-					y = obj.y
-					#self.board.board[x][y].healDamage(self.board, x, y)
-					obj.hp = command["finalHP"]
-					self.changed = 1
+					if obj:
+						x = obj.x
+						y = obj.y
+						#self.board.board[x][y].healDamage(self.board, x, y)
+						obj.hp = command["finalHP"]
+						self.changed = 1
 				elif command["cmd"] == "damage":
 					u_id = command["id"]
 					#Damage dragon
 					obj = self.board.findObject(u_id)
-					x = obj.x
-					y = obj.y
-					#self.board.board[x][y].dealDamage(self.board, x, y)
-					obj.hp = command["finalHP"]
+					if obj:
+						x = obj.x
+						y = obj.y
+						#self.board.board[x][y].dealDamage(self.board, x, y)
+						obj.hp = command["finalHP"]
 					self.changed = 1
 				self.lock.release()
 
@@ -190,13 +189,17 @@ class Client:
 					newPlayer.hp = boardServer[x][y][2]
 					newPlayer.ap = boardServer[x][y][3]
 					newPlayer.maxHP = boardServer[x][y][4]
+					if newPlayer.id == self.id:
+						newPlayer.isUser=True
+						self.spawned = True
+						self.player = newPlayer
 					self.board.insertObject(newPlayer)
 
 	def sendCommand(self, command):
 		try:
 			send(self.s, command)
 		except Exception, e:
-			print 'Error sending command:',e
+			print "Error sending command:" + str(e)
 			if not self.dead:
 				self.lookupAnotherServer = True
 
@@ -238,7 +241,7 @@ class Client:
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "move", "id": self.player.id, "where": (self.player.x, self.player.y)}}))
 			elif event == 5: #Event for when all the dragons are killed
 				self.sendCommand(json.dumps({"type":"command", "content": {"cmd": "disconnect", "id": self.player.id}}))
-				log.println("All the dragons are killed. I will now exit",1)
+				print "All the dragons are killed. I will now exit"
 				sys.exit()
 			elif event != 0:
 				target = self.board.board[event[0]][event[1]]

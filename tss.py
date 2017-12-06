@@ -49,8 +49,6 @@ class DamageCommand:
 				self.antiCommand = {"cmd": "heal", "subject": self.who, "id":self.target}
 				return {"cmd": "damage", "subject": self.who, "id": self.target, "finalHP": target.hp} #Broadcast this to servers and clients
 			else:
-				if "-v" in sys.argv:
-					print '\n',target.name,'DEAD\n\n'
 				oldPlayer = {"x": target.x, "y": target.y, "id": target.id, "hp": target.hp, "ap": target.ap}
 				board.board[target.x][target.y] = Empty(obj.x, obj.y)
 				self.result = {"x":target.x, "y": target.y, "player": None} #There is no player at x,y
@@ -94,8 +92,6 @@ class SpawnCommand:
 			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
-			if "-v" in sys.argv:
-				print '\nSPAWWWWNING\n\n\n'
 			player = Player(x, y, u_id) #Players are the only ones that are spawn dynamically
 			board.insertObject(player)
 			self.result = {"x":x, "y":y,"player": self.unit} #There is a player in x,y
@@ -114,8 +110,6 @@ class DespawnCommand:
 			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
-			if "-v" in sys.argv:
-				print '\nDESPAWNING\n'
 			oldPlayer = {"x": obj.x, "y": obj.y, "id": obj.id, "hp": obj.hp, "ap": obj.ap}
 			board.board[obj.x][obj.y] = Empty(obj.x, obj.y)
 			self.result = {"x":obj.x, "y": obj.y, "player": None} #There is no player at x,y
@@ -145,8 +139,6 @@ def createCmd(command, curr_time, issuedBy):
 		who = command["content"]["id"]
 		res = DespawnCommand(who)
 	else:
-		if "-v" in sys.argv:
-			print 'Invalid command',command
 		return
 	res.timestamp = curr_time #Timestamp added to each command
 	res.result = None #When result is none, the command wasn't executed
@@ -176,10 +168,9 @@ class TrailingState:
 				break
 
 		while i > 0:
-			#FIXME Instead of this, compare if the id of the server who sent the command[i] is higher than this server. If so, break the while
-
 			i -= 1
-			if self.commands[i].timestamp < command.timestamp:
+			if self.commands[i].timestamp < command.timestamp or self.commands[i].issuedBy > command.issuedBy:
+				#Solve conflicts using the server ids
 				i += 1
 				break
 
@@ -201,8 +192,6 @@ class TrailingState:
 					toBroadCast["issuedBy"] = command.issuedBy
 					toBroadCast["timestamp"] = command.timestamp
 					commandsToBroadCast.append(toBroadCast)
-					if "-v" in sys.argv:
-						print 'goingToBroadCast:',toBroadCast
 		return commandsToBroadCast
 
 class TSS:

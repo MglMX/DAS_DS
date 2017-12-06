@@ -3,7 +3,7 @@ from utils import *
 import select,sys, time
 from gameLog import Logger
 
-log = Logger(1, [])
+log = Logger(1, ['update'])
 
 CLIENTCODE  = 0
 SERVERCODE  = 1
@@ -278,7 +278,7 @@ class Mediator:
 					log.println("I am going to send a message to the server "+str(server), 1, ['debug'])
 					send(self.servers[server][1], serverList)
 			except Exception,e:
-				log.println(e, 'check this exception to see if you can remove the server from the servers list', 1, ['error'])
+				log.println(str(e)+ 'check this exception to see if you can remove the server from the servers list', 1, ['error'])
 		self.updateReplicas()
 	def updateReplicas(self):
 		#Update replicas

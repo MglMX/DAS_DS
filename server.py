@@ -11,7 +11,7 @@ import select, random
 
 DRAGONS_TO_SPAWN = 20
 
-log = Logger(4, [])
+log = Logger(1, ['init'])
 #log.println(msg, priority, keywords)
 
 class ServerConn:
@@ -29,7 +29,7 @@ class ServerConn:
 
 
 class ClientConn:
-	def __init__(self, conn, server):
+	def __init__(self, conn, server, reuse_id):
 		''' Responsible for managing a client.
 			Creates a player in the board.
 			Has attributes like the player id, the connecting socket, the last time it sent a report, etc '''
@@ -38,7 +38,15 @@ class ClientConn:
 		self.conn = conn
 		self.id = self.server.curr_id
 		self.server.curr_id += 1
-		self.player = self.spawnPlayer()
+		success = None
+		if reuse_id:
+			success = self.tryReuseId(reuse_id)
+		if not success:
+			self.player = self.spawnPlayer()
+		else:
+			self.player = success
+			self.id = self.player.id
+			self.server.curr_id -= 1
 		self.lastTimeReport = self.server.timer.getTime()
 
 	def spawnPlayer(self):
@@ -55,15 +63,21 @@ class ClientConn:
 		#board.insertObject(player)
 		return player
 
+	def tryReuseId(self, reuse_id):
+		board = self.server.tss.trailingStates[0].board
+		for x in range(25):
+			for y in range(25):
+				if self.server.tss.trailingStates[0].board.board[x][y].id == reuse_id:
+					return board.board[x][y]
+
 	def remove(self):
 		''' Despawn player and remove it from clients list. FIXME: concurrency problems '''
-		self.server.board.board[self.player.x][self.player.y] = Empty(self.player.x, self.player.y)
 		if self in self.server.clients:
 			self.server.clients.remove(self)
 			self.server.players_number -= 1
 
 		#broadcast despawn
-		self.server.broadcastCommand({"cmd": "despawn", "id": self.id, "timestamp":self.server.timer.getTime()}) #FIXME too heavy
+		self.server.tss.addCommand({"type": "command", "content": {"cmd": "despawn", "id": self.id}}, self.server.timer.getTime(), self.server.sid)
 
 	def checkIdle(self, curr_time):
 		return curr_time-self.lastTimeReport > 70 #AFK X seconds = disconnnect. FIXME
@@ -120,8 +134,9 @@ class HandleClientsState():
 		message = receive(conn)
 		if message["type"] == "ConnectionToServer":
 			if message["content"]["nodeType"]== 0: #It is a client
-				command = self.handleNewClient(conn)
+				command = self.handleNewClient(conn, message["content"]["reuse_id"])
 				self.server.tss.addCommand(command, current, self.server.sid)
+				self.server.tss.executeCommands(current)
 			elif message["content"]["nodeType"]== 1: #It is a server
 				if not self.server.checkIfSocketAlreadySaved(conn):
 					self.server.neighbours.append(ServerConn(conn,self.server,addr[0],addr[1])) #addr = (ip,port)
@@ -139,13 +154,13 @@ class HandleClientsState():
 							jsonCommand = {"type": "command", "content": {"cmd": command.cmd, "timestamp": command.timestamp, "id": command.who}}
 						else:
 							if "-v" in sys.argv:
-								print 'WHAT?',command.cmd
+								print 'Invalid command',command.cmd
 						jsonCommand["content"]["issuedBy"] = command.issuedBy
 						commandList.append(jsonCommand)
 					message = json.dumps({"type":"InitialBoard", "content":{"board": self.server.tss.trailingStates[-1].board.getBoard(), "commands": commandList}})
 					send(conn, message)
 
-	def handleNewClient(self,conn):
+	def handleNewClient(self,conn, reuse_id):
 		''' First, accept connection. Then, send the board and the player ID '''
 
 		conn.settimeout(1) #FIXME set timeout properly
@@ -154,7 +169,7 @@ class HandleClientsState():
 
 		#Send board and player ID
 
-		client = ClientConn(conn, self.server)
+		client = ClientConn(conn, self.server, reuse_id)
 		board = json.dumps({"type": "board", "content": {"ID": client.id, "board": self.server.tss.trailingStates[0].board.getBoard()}})
 		send(conn, board)
 
@@ -208,9 +223,9 @@ class HandleClientsState():
 					self.server.tss.addCommand(command, command["content"]["timestamp"], server.sid) #FIXME - add server ID probably to solve conflicts and flag saying its a foreign command and shouldt be broadcasted again
 				except Exception, e:
 					log.println("Error handling server commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
-					#FIXME Remove server from list or whatever
-		for client in toRemove:
-			client.remove()
+					toRemove.append(server)
+		for node in toRemove:
+			node.remove()
 		self.server.tss.executeCommands(curr_time)
 
 	def run(self):
@@ -294,8 +309,7 @@ class SynchronizeTimeState():
 			assert T1["type"] == "Synch"
 			T1 = float(T1["content"])
 
-			if "-v" in sys.argv:
-				print '\nx: ' + str(x) + ' | TIME AT MEDIATOR: ' + str(T1 + x/2) + '\n' #FIXME remove this print
+			print '\nx: ' + str(x) + ' | TIME AT MEDIATOR: ' + str(T1 + x/2) + '\n' #FIXME remove this print
 
 			self.server.timer.timeDiff = T2 - (T1 + x/2)
 			self.server.timeToSynch = self.server.timer.getTime()+200 #FIXME each 200 seconds the server synchronizes
@@ -324,8 +338,6 @@ class InitialState():
 				self.server.createServerSocket(neighbours)
 				#neighbourConn = random.choice(self.server.neighbours) #FIXME Choose any of the neighbours to ask for the board. May cause problems
 			else:
-				if "-v" in sys.argv:
-					print 'SPAWNING dragons'
 				self.server.spawnDragons()
 
 
@@ -357,8 +369,6 @@ class Server:
 		self.curr_id = 1 #Next ID to assign
 		#################
 
-		#FIXME Dragons and board should be generated only by the first server
-		self.board = Board()
 		self.clients = []
 
 		self.tss = TSS(self)
