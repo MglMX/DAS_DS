@@ -23,7 +23,6 @@ class Unit(object):
 			return 0
 
 		self.hp += modifier
-		print '\n\nDRAGON NOW HAS ',self.hp
 
 		if(self.hp > self.maxHP):
 			self.hp = self.maxHP

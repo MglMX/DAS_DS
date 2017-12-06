@@ -100,14 +100,11 @@ class Client:
 					u_id = command["id"]
 					pos = command["where"]
 
-					print 'Moving player:',u_id,'to',pos
 					self.board.movePlayer(u_id, pos)
-					print self.board.board[pos[0]][pos[1]].name
 					self.changed = 1
 
 				elif command["cmd"] == "spawn" : #SPAWN CMD
 					player = command["player"]
-					print 'Spawning:',player
 					x = player["x"]
 					y = player["y"]
 					u_id = player["id"]
@@ -121,6 +118,7 @@ class Client:
 						self.player = player
 					player.hp = hp
 					player.ap = ap
+					player.maxHP = hp
 					self.board.board[x][y] = player
 					self.changed = 1
 
@@ -130,7 +128,6 @@ class Client:
 					if obj:
 						x = obj.x
 						y = obj.y
-						print 'RECEIVED DESPAWN MESSAGE'
 						if self.board.board[x][y].name != 'empty':
 							if self.board.board[x][y].name == 'player' and self.board.board[x][y].isUser:
 								print '\nYou died'
@@ -157,7 +154,6 @@ class Client:
 					y = obj.y
 					#self.board.board[x][y].dealDamage(self.board, x, y)
 					obj.hp = command["finalHP"]
-					print obj.name,'health is now',obj.hp
 					self.changed = 1
 				self.lock.release()
 
@@ -193,11 +189,11 @@ class Client:
 					newPlayer = Player(x, y, boardServer[x][y][1])
 					newPlayer.hp = boardServer[x][y][2]
 					newPlayer.ap = boardServer[x][y][3]
+					newPlayer.maxHP = boardServer[x][y][4]
 					self.board.insertObject(newPlayer)
 
 	def sendCommand(self, command):
 		try:
-			print 'sending',command
 			send(self.s, command)
 		except Exception, e:
 			print 'Error sending command:',e

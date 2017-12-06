@@ -190,9 +190,8 @@ class HandleClientsState():
 					
 					if command["content"]["cmd"] == "disconnect": #FIXME disconnect now should use the new board
 						u_id = command["id"]
-						self.server.board.deleteObject(u_id)
-						log.println("Player: "+u_id+" deleted from the board",1)
 						toRemove.append(client)
+						self.server.tss.addCommand({"type": "command", "content": {"cmd": "despawn", "id": u_id}}, curr_time, server.sid)
 					else:
 						self.server.tss.addCommand(command, curr_time, self.server.sid) #FIXME - when a dragon is hit, it might die and we have to broadcast the despawn, etc
 
@@ -238,7 +237,8 @@ class HandleClientsState():
 			toCheck.append(self.server.med_sock)
 			for server in self.server.neighbours:
 				toCheck.append(server.conn)
-			readable, writeable, error = select.select(toCheck, [], [], (self.TIME_BETWEEN_REPORT+begin-current))
+			timeout = min(self.server.nextTime-current,(self.TIME_BETWEEN_REPORT+begin-current))
+			readable, writeable, error = select.select(toCheck, [], [], timeout)
 			
 			if self.server.sock in readable:
 				try:

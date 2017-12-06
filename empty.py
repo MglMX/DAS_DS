@@ -6,3 +6,4 @@ class Empty:
 		self.y = y
 		self.hp = 0
 		self.ap = 0
+		self.maxHP = 0

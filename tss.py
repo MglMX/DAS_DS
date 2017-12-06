@@ -46,7 +46,6 @@ class DamageCommand:
 				self.antiCommand = {"cmd": "heal", "subject": self.who, "id":self.target}
 				return {"cmd": "damage", "subject": self.who, "id": self.target, "finalHP": target.hp} #Broadcast this to servers and clients
 			else:
-				print '\n',target.name,'DEAD\n\n'
 				oldPlayer = {"x": target.x, "y": target.y, "id": target.id, "hp": target.hp, "ap": target.ap}
 				board.board[target.x][target.y] = Empty(obj.x, obj.y)
 				self.result = {"x":target.x, "y": target.y, "player": None} #There is no player at x,y
@@ -86,7 +85,6 @@ class SpawnCommand:
 			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
-			print '\nSPAWWWWNING\n\n\n'
 			player = Player(x, y, u_id) #Players are the only ones that are spawn dynamically
 			board.insertObject(player)
 			self.result = {"x":x, "y":y,"player": self.unit} #There is a player in x,y
@@ -104,7 +102,6 @@ class DespawnCommand:
 			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
-			print '\nDESPAWNING\n'
 			oldPlayer = {"x": obj.x, "y": obj.y, "id": obj.id, "hp": obj.hp, "ap": obj.ap}
 			board.board[obj.x][obj.y] = Empty(obj.x, obj.y)
 			self.result = {"x":obj.x, "y": obj.y, "player": None} #There is no player at x,y
@@ -189,7 +186,6 @@ class TrailingState:
 					toBroadCast["issuedBy"] = command.issuedBy
 					toBroadCast["timestamp"] = command.timestamp
 					commandsToBroadCast.append(toBroadCast)
-					print 'goingToBroadCast:',toBroadCast
 		return commandsToBroadCast
 
 class TSS:

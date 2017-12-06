@@ -2,7 +2,7 @@ import random
 import pygame,sys
 import time
 
-TIME_BETWEEN_COMMANDS = 0.25
+TIME_BETWEEN_COMMANDS = 1
 pygame.init()
 
 class clientAI:

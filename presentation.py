@@ -1,6 +1,6 @@
 from utils import *
-from clientAI import clientAI
-import client
+from clientAI import *
+import client,time
 
 from threading import *
 
@@ -19,6 +19,7 @@ for i in range(100): #100 players
 	t.setDaemon(True)
 	t.start()
 	threads.append(t)
+	time.sleep(float(TIME_BETWEEN_COMMANDS)/100)
 
 s = client.Client(MED_LIST)
 s.runGame()
