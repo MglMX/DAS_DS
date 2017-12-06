@@ -205,7 +205,7 @@ class HandleClientsState():
 					if command["content"]["cmd"] == "disconnect": #FIXME disconnect now should use the new board
 						u_id = command["content"]["id"]
 						toRemove.append(client)
-						self.server.tss.addCommand({"type": "command", "content": {"cmd": "despawn", "id": u_id}}, curr_time, server.sid)
+						self.server.tss.addCommand({"type": "command", "content": {"cmd": "despawn", "id": u_id}}, curr_time, self.server.sid)
 					else:
 						self.server.tss.addCommand(command, curr_time, self.server.sid) #FIXME - when a dragon is hit, it might die and we have to broadcast the despawn, etc
 
