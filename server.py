@@ -9,6 +9,8 @@ from utils  import *
 import sys, time
 import select, random
 
+#FIXME - general optimizations. its a bit slow with 100 clients right now
+
 DRAGONS_TO_SPAWN = 20
 
 log = Logger(1)
@@ -196,6 +198,9 @@ class HandleClientsState():
 			if client.conn in readable:
 				try:
 					command = receive(client.conn)
+					if command["type"] == "Error":
+						toRemove.append(client)
+						continue
 					assert command["type"] == "command"
 
 					client.lastTimeReport = curr_time
@@ -210,7 +215,7 @@ class HandleClientsState():
 						self.server.tss.addCommand(command, curr_time, self.server.sid) #FIXME - when a dragon is hit, it might die and we have to broadcast the despawn, etc
 
 				except Exception, e:
-					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
+					log.println("Error handling commands: " + str(e) + str(type(e)), 2, ['command', 'error']) #FIXME - when a client dies this gives an assertion error
 					toRemove.append(client)
 
 		for server in self.server.neighbours:
@@ -240,7 +245,7 @@ class HandleClientsState():
 			elif current > self.server.nextTime:
 				self.server.time += 1
 				self.server.nextTime = self.server.timer.getTime() + 1 #FIXME time until next turn
-				commands = self.server.tss.trailingStates[0].board.dragonsAI(self.server.time)
+				commands = self.server.tss.trailingStates[0].board.dragonsAI(self.server.time) #FIXME - dragons not attacking sometimes. probably has to do with timeout in select 
 				if commands:
 					for command in commands:
 						self.server.tss.addCommand(command, current, self.server.sid)
@@ -251,7 +256,7 @@ class HandleClientsState():
 			for server in self.server.neighbours:
 				toCheck.append(server.conn)
 
-			timeout = min(self.server.nextTime-current,(self.TIME_BETWEEN_REPORT+begin-current))
+			timeout = min(self.server.nextTime-current,(self.TIME_BETWEEN_REPORT+begin-current)) #FIXME - is timeout correct? dragons are not attacking when they should
 			readable, writeable, error = select.select(toCheck, [], [], timeout)
 
 			if self.server.sock in readable:

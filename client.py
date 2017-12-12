@@ -10,6 +10,70 @@ import pygame, sys, time, random
 
 from threading import Thread, Semaphore #There is a thread waiting for server commands and updating the gui
 
+def undoCommand(command, client):
+	''' TODO - Generate anti command with the command '''
+	if command["cmd"] == "move": #MOVE CMD
+		u_id = command["id"]
+		pos = command["where"]
+
+		client.board.movePlayer(u_id, pos)
+		client.changed = 1
+
+	elif command["cmd"] == "spawn" : #SPAWN CMD
+		player = command["player"]
+		x = player["x"]
+		y = player["y"]
+		u_id = player["id"]
+		hp = player["hp"]
+		ap = player["ap"]
+		player = Player(x,y,u_id)
+		if u_id == client.id:
+			print '\nI was spawned... again\n'
+			player.isUser=True
+			client.spawned = True
+			client.player = player
+		player.hp = hp
+		player.ap = ap
+		player.maxHP = hp
+		client.board.board[x][y] = player
+		client.changed = 1
+
+	elif command["cmd"] == "despawn":
+		u_id = command["id"]
+		obj = client.board.findObject(u_id)
+		if obj:
+			x = obj.x
+			y = obj.y
+			if client.board.board[x][y].name != 'empty':
+				if client.board.board[x][y].name == 'player' and client.board.board[x][y].isUser:
+					print '\nYou died'
+					client.dead = True
+					#FIXME
+					return
+				client.board.board[x][y] = Empty(x,y)
+				client.changed = 1
+
+	elif command["cmd"] == "heal":
+		u_id = command["id"]
+		#Heal player
+		obj = client.board.findObject(u_id)
+		if obj:
+			x = obj.x
+			y = obj.y
+			#self.board.board[x][y].healDamage(self.board, x, y)
+			obj.hp = command["finalHP"]
+			client.changed = 1
+	elif command["cmd"] == "damage":
+		u_id = command["id"]
+		#Damage dragon
+		obj = client.board.findObject(u_id)
+		if obj:
+			x = obj.x
+			y = obj.y
+			#self.board.board[x][y].dealDamage(self.board, x, y)
+			obj.hp = command["finalHP"]
+		client.changed = 1
+
 class Client:
 	def __init__(self, med_list, reuse_id=None, reuse_gui=None):
 		self.s = None #Will hold the connection between client and server
@@ -81,6 +145,7 @@ class Client:
 			return server
 
 	def serverConnectionDaemon(self):
+		commandList = [] #Command list ordered by arrival of commands (commands should arrive in order --> TCP)
 		try:
 			while 1:
 				command = receive(self.s)
@@ -100,6 +165,7 @@ class Client:
 
 					self.board.movePlayer(u_id, pos)
 					self.changed = 1
+					commandList.append("TODO")
 
 				elif command["cmd"] == "spawn" : #SPAWN CMD
 					player = command["player"]
@@ -119,6 +185,7 @@ class Client:
 					player.maxHP = hp
 					self.board.board[x][y] = player
 					self.changed = 1
+					commandList.append("TODO")
 
 				elif command["cmd"] == "despawn":
 					u_id = command["id"]
@@ -134,6 +201,7 @@ class Client:
 								return
 							self.board.board[x][y] = Empty(x,y)
 							self.changed = 1
+					commandList.append("TODO")
 
 				elif command["cmd"] == "heal":
 					u_id = command["id"]
@@ -145,6 +213,7 @@ class Client:
 						#self.board.board[x][y].healDamage(self.board, x, y)
 						obj.hp = command["finalHP"]
 						self.changed = 1
+					commandList.append("TODO")
 				elif command["cmd"] == "damage":
 					u_id = command["id"]
 					#Damage dragon
@@ -155,6 +224,12 @@ class Client:
 						#self.board.board[x][y].dealDamage(self.board, x, y)
 						obj.hp = command["finalHP"]
 					self.changed = 1
+					commandList.append("TODO")
+				elif command["cmd"] == "rollback": #Rollback
+					howMany = command["number"]
+					for i in range(howMany):
+						undoCommand(commandList[-i-1], self) # "anti-commands"
+					commandList = commandList[:-howMany]
 				self.lock.release()
 
 		except Exception,e:
@@ -260,8 +335,8 @@ class Client:
 
 
 if __name__ == "__main__":
-	#s = Client(MED_LIST)
-	s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
+	s = Client(MED_LIST)
+	#s = Client(MED_LIST,reuse_gui=clientAI()) #Comment in order to not use AI
 	while 1:
 		status = s.runGame()
 		if s.lookupAnotherServer: #Server crashed or something

@@ -2,6 +2,7 @@
 from board import Board
 from empty import Empty
 from Player import Player
+from Dragon import Dragon
 
 class MoveCommand:
 	def __init__(self, who, where):
@@ -147,10 +148,11 @@ def createCmd(command, curr_time, issuedBy):
 
 
 class TrailingState:
-	def __init__(self, tss, delay, index):
+	def __init__(self, tss, delay, index,last=False):
 		''' Server is the server.
 			Delay is the delay in ms where commands will be executed in this trailing state
 			Index is the position of this TrailingState in the list of TrailingStates (so we know which state is the preceding)
+			last is a flag indicating if this TSS is the last on the list
 		'''
 		self.delay = float(delay) / 1000
 		if index == 0: #First state has no trailing state
@@ -158,6 +160,7 @@ class TrailingState:
 		else:
 			self.preceding = tss.trailingStates[index-1]
 
+		self.lastTSS = last
 		self.board = Board()
 		self.commands = [] #List of commands ordered by timestamp. Older commands first
 
@@ -176,9 +179,12 @@ class TrailingState:
 
 		self.commands = self.commands[:i] + [command] + self.commands[i:]
 
-	def executeRollBack(self, command):
+	def executeRollBack(self, command, nr=0):
 		#Copy the board from this ts to the preceding ts's.
-		return
+		if not self.preceding:
+			if nr:
+				pass #TODO send number of commands to rollback to clients
+			return
 		board = self.board.getBoard()
 		self.preceding.board = Board()
 		for x in range(25):
@@ -197,19 +203,27 @@ class TrailingState:
 					self.preceding.board.insertObject(newPlayer)
 
 		#Mark all the commands with timestamp > command.timestamp from the preceding ts as not executed
-		for i in range(len(self.preceding.commands),-1,-1):
+
+		nr = 0
+		for i in range(len(self.preceding.commands)-1,-1,-1):
 			commandPrec = self.preceding.commands[i]
 			if commandPrec.timestamp > command.timestamp:
 				commandPrec.result = None
+				nr += 1 #Probably variable i would be enough but whatever
 			else:
 				break
 
-		#If the real-time ts commands were marked as not executed, broadcast the antiCommands for the users
+		#TODO If the real-time ts commands were marked as not executed, broadcast the antiCommands for the users
+			#Easier way to do it: Clients have a list of commands and servers just tells the client how many commands to go back
+		self.preceding.executeRollBack(command.preceding, nr) #Rollbacks should have a domino effect on all preceding states
 
 	def executeCommands(self, curr_time):
 		''' Also check for inconsistencies. Rollback if needed '''
 		commandsToBroadCast = []
 		rollBack = None
+
+		toRemove = [] #Commands to remove in case this is the last tss
+
 		for command in self.commands:
 			if command.timestamp > curr_time-self.delay:
 				break
@@ -220,6 +234,9 @@ class TrailingState:
 					if command.result != command.preceding.result:
 						rollBack = command
 						break
+					else:
+						if self.lastTSS:
+							toRemove.append(command)
 				elif toBroadCast:
 					toBroadCast["issuedBy"] = command.issuedBy
 					toBroadCast["timestamp"] = command.timestamp
@@ -228,7 +245,16 @@ class TrailingState:
 		if rollBack:
 			self.executeRollBack(command)
 
+		for command in toRemove:
+			self.deleteCommand(command)
+
 		return commandsToBroadCast
+
+	def deleteCommand(command):
+		if self.preceding:
+			self.preceding.deleteCommand(command.preceding) #Domino effect on deleting command
+
+		self.commands.remove(command)
 
 class TSS:
 	def __init__(self, server):
