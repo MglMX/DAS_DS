@@ -5,7 +5,7 @@ from gameLog import Logger
 
 log = Logger(4)
 
-MED_LIST = [('192.168.0.102', 6969), ('192.168.0.105', 6969)] #FIXME at deployment --> This is the list of mediator (first element) and its replicas
+MED_LIST = [('localhost', 6969), ('localhost', 6970)] #FIXME at deployment --> This is the list of mediator (first element) and its replicas
 
 def send(sock, message):
 	message = '<MSG>'+message+'</MSG>'
@@ -58,6 +58,3 @@ def receive(sock, MAX_SIZE=4096):
 	except:
 		log.println('Error in receive. Couldnt load JSON object from what has been received', 2, ['error'])
 		return json.loads('{"type":"Error","content":{"info":"Message is not json object"}}')
-	
-	
-
