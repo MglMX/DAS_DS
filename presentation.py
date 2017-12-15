@@ -6,7 +6,7 @@ from threading import *
 import sys
 
 def handleClient():
-	s = client.Client(MED_LIST,reuse_gui=clientAI(graphical=False)) #Comment in order to not use AI
+	s = client.Client(MED_LIST,reuse_gui=clientAI(graphical=False))
 	while 1:
 		status = s.runGame()
 		if s.lookupAnotherServer: #Server crashed or something
@@ -22,8 +22,8 @@ for i in range(100): #100 players
 	threads.append(t)
 	time.sleep(float(TIME_BETWEEN_COMMANDS)/100)
 
-s = client.Client(MED_LIST, observer=True)
-s.runGame()
+#s = client.Client(MED_LIST, observer=True)
+#s.runGame()
 
 for t in threads:
 	t.join(0.01)

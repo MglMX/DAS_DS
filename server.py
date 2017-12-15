@@ -48,7 +48,7 @@ class ClientConn:
 		if reuse_id:
 			success = self.tryReuseId(reuse_id)
 		if not success:
-			self.player = self.spawnPlayer()
+			self.player = self.spawnPlayer(observer)
 		else:
 			self.player = success
 			self.id = self.player.id
@@ -56,7 +56,7 @@ class ClientConn:
 		self.lastTimeReport = self.server.timer.getTime()
 		self.observer = observer
 
-	def spawnPlayer(self):
+	def spawnPlayer(self, observer):
 		''' Spawn player whereven it can. FIXME: concurrency problems  '''
 		board = self.server.tss.trailingStates[0].board
 		while 1:
