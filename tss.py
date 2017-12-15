@@ -19,7 +19,6 @@ class MoveCommand:
 		if board.board[x][y].name != 'empty' or not obj:
 			#Ignore this command if it can't be executed
 			self.result = 'invalid'
-			self.antiCommand = None
 			return None #Dont broadcast anything
 		else: #FIXME use movePlayer function
 			oldPosition = (obj.x,obj.y)
@@ -28,7 +27,6 @@ class MoveCommand:
 			obj.x = x
 			obj.y = y
 			self.result = {"id":self.who, "where": self.where} #It means now id is where
-			self.antiCommand = {"cmd": "move", "where": oldPosition}
 			return {"cmd": "move", "where": self.where, "id": self.who} #Broadcast this to servers and clients
 
 
@@ -43,19 +41,16 @@ class DamageCommand:
 		target = board.findObject(self.target)
 		if not obj or not target:
 			self.result = 'invalid'
-			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
 			obj.dealDamage(board, target.x, target.y)
 			if target.hp != 0:
 				self.result = {"id": self.target, "hp": target.hp} #It means now id has hp
-				self.antiCommand = {"cmd": "heal", "subject": self.who, "id":self.target}
 				return {"cmd": "damage", "subject": self.who, "id": self.target, "finalHP": target.hp} #Broadcast this to servers and clients
 			else:
 				oldPlayer = {"x": target.x, "y": target.y, "id": target.id, "hp": target.hp, "ap": target.ap}
 				board.board[target.x][target.y] = Empty(obj.x, obj.y)
 				self.result = {"x":target.x, "y": target.y, "player": None} #There is no player at x,y
-				self.antiCommand = {"cmd": "spawn", "player": oldPlayer}
 				return {"cmd": "despawn", "id": target.id}
 
 
@@ -69,12 +64,10 @@ class HealCommand:
 		target = board.findObject(self.target)
 		if not obj or not target:
 			self.result = 'invalid'
-			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
 			obj.healDamage(board, target.x, target.y)
 			self.result = {"id": self.target, "hp": target.hp} #It means now id has hp
-			self.antiCommand = {"cmd": "damage", "subject": self.who, "id":self.target}
 			return {"cmd": "heal", "subject": self.who, "id": self.target, "finalHP": target.hp} #Broadcast this to servers and clients
 
 
@@ -92,13 +85,11 @@ class SpawnCommand:
 		obj = board.findObject(u_id)
 		if obj or board.board[x][y].name != 'empty':
 			self.result = 'invalid'
-			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
 			player = Player(x, y, u_id) #Players are the only ones that are spawn dynamically
 			board.insertObject(player)
 			self.result = {"x":x, "y":y,"player": self.unit} #There is a player in x,y
-			self.antiCommand = {"cmd": "despawn", "id":u_id}
 			return {"cmd": "spawn", "player": self.unit} #Broadcast this to servers and clients
 
 class DespawnCommand:
@@ -110,13 +101,11 @@ class DespawnCommand:
 		obj = board.findObject(self.who)
 		if not obj:
 			self.result = 'invalid'
-			self.antiCommand = None
 			return None #Broadcast nothing
 		else:
 			oldPlayer = {"x": obj.x, "y": obj.y, "id": obj.id, "hp": obj.hp, "ap": obj.ap}
 			board.board[obj.x][obj.y] = Empty(obj.x, obj.y)
 			self.result = {"x":obj.x, "y": obj.y, "player": None} #There is no player at x,y
-			self.antiCommand = {"cmd": "spawn", "player": oldPlayer}
 			return {"cmd": "despawn", "id": self.who}
 
 
@@ -145,7 +134,11 @@ def createCmd(command, curr_time, issuedBy):
 		return
 	res.timestamp = curr_time #Timestamp added to each command
 	res.result = None #When result is none, the command wasn't executed
-	res.issuedBy = issuedBy #Server id that issued this command
+	if "issuedBy" not in cmd:
+		res.issuedBy = issuedBy #Server id that issued this command
+	else:
+		res.issuedBy = cmd["issuedBy"]
+		print 'Ah!'
 	return res
 
 
@@ -216,8 +209,8 @@ class TrailingState:
 			else:
 				break
 
-		#TODO If the real-time ts commands were marked as not executed, broadcast the antiCommands for the users
-			#Easier way to do it: Clients have a list of commands and servers just tells the client how many commands to go back
+
+			#Clients have a list of commands and servers just tells the client how many commands to go back
 		return self.preceding.executeRollBack(command.preceding, nr) #Rollbacks should have a domino effect on all preceding states
 
 	def executeCommands(self, curr_time):

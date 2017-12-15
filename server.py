@@ -156,7 +156,7 @@ class HandleClientsState():
 				self.server.tss.executeCommands(current)
 			elif message["content"]["nodeType"]== 1: #It is a server
 				if not self.server.checkIfSocketAlreadySaved(conn):
-					self.server.neighbours.append(ServerConn(conn,self.server,addr[0],addr[1])) #addr = (ip,port)
+					self.server.neighbours.append(ServerConn(conn,self.server,message["content"]["ip"],message["content"]["port"])) #addr = (ip,port)
 					log.println("Connection accepted from a server and socket created",1)
 				if message["content"]["giveMeBoard"]: #FIXME - receiving the board should probably be here
 					commandList = []
@@ -240,7 +240,7 @@ class HandleClientsState():
 
 					assert command["type"] == "command" #Server should otherwise only send commands to each other probably
 					#FIXME check the last time it sent report? probably should do the trick described in broadcastCommand instead
-					self.server.tss.addCommand(command, command["content"]["timestamp"], server.sid) #FIXME - add server ID probably to solve conflicts and flag saying its a foreign command and shouldt be broadcasted again
+					self.server.tss.addCommand(command, command["content"]["timestamp"], server.sid)
 				except Exception, e:
 					log.println("Error handling server commands: " + str(e) + str(type(e)), 2, ['command', 'error'])
 					toRemove.append(server)
@@ -428,7 +428,7 @@ class Server:
 					serverSocket.connect((serverIpPort[0], serverIpPort[1]))  # serverIpPort = (ip,port)
 
 					server_connection = json.dumps(
-						{"type": "ConnectionToServer", "content": {"nodeType": 1, "giveMeBoard": not receivedBoard}})
+						{"type": "ConnectionToServer", "content": {"nodeType": 1, "giveMeBoard": not receivedBoard, "ip": self.local_ip, "port": self.local_port}})
 					try:
 						send(serverSocket, server_connection)  # Indicate to the server that I am a server
 						message = receive(serverSocket)
@@ -525,6 +525,9 @@ class Server:
 	def broadcastCommand(self, command, exceptClient=None, clientsOnly=False):
 		''' FIXME should group commands and send them all at once right?'''
 		toRemove = []
+
+		if command["cmd"] == "despawn":
+			print 'Broadcasting despawn. ClientsOnly:',clientsOnly,'command:',command
 		for client in self.clients:
 			if client != exceptClient:
 				try:
