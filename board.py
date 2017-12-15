@@ -31,7 +31,7 @@ class Board:
 		self.board[pos[0]][pos[1]] = player
 		self.board[pos[0]][pos[1]].x = pos[0]
 		self.board[pos[0]][pos[1]].y = pos[1]
-		return 1
+		return x,y
 
 	def findObject(self, u_id):
 		''' Finds the position of the object with id u_id in the board.

@@ -3,6 +3,7 @@ from clientAI import *
 import client,time
 
 from threading import *
+import sys
 
 def handleClient():
 	s = client.Client(MED_LIST,reuse_gui=clientAI(graphical=False)) #Comment in order to not use AI
@@ -21,10 +22,10 @@ for i in range(100): #100 players
 	threads.append(t)
 	time.sleep(float(TIME_BETWEEN_COMMANDS)/100)
 
-s = client.Client(MED_LIST)
+s = client.Client(MED_LIST, observer=True)
 s.runGame()
 
 for t in threads:
-	t.join()
+	t.join(0.01)
 
 print 'Done'

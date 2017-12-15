@@ -16,6 +16,10 @@ DRAGONS_TO_SPAWN = 20
 log = Logger(1)
 #log.println(msg, priority, keywords)
 
+def distance(pos1, pos2):
+	return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+
+
 class ServerConn:
 	def __init__(self,conn,server,ip,port):
 		self.server = server
@@ -31,7 +35,7 @@ class ServerConn:
 
 
 class ClientConn:
-	def __init__(self, conn, server, reuse_id):
+	def __init__(self, conn, server, reuse_id, observer):
 		''' Responsible for managing a client.
 			Creates a player in the board.
 			Has attributes like the player id, the connecting socket, the last time it sent a report, etc '''
@@ -50,6 +54,7 @@ class ClientConn:
 			self.id = self.player.id
 			self.server.curr_id -= 1
 		self.lastTimeReport = self.server.timer.getTime()
+		self.observer = observer
 
 	def spawnPlayer(self):
 		''' Spawn player whereven it can. FIXME: concurrency problems  '''
@@ -58,7 +63,17 @@ class ClientConn:
 			x = random.randint(0,24)
 			y = random.randint(0,24)
 			if board.board[x][y].name == 'empty':
-				break
+				if not observer:
+					break
+				else: #Also dont want to spawn near dragons
+					good = True
+					for x2 in range(25):
+						for y2 in range(25):
+							if board.board[x2][y2].name == 'dragon' and distance((x,y), (x2,y2)) <= 2:
+								good = False
+					if good:
+						break
+
 		player = Player(x, y, self.id)
 		if "-v" in sys.argv:
 			print '\n\nCreated client in',x,y,self.id
@@ -82,7 +97,7 @@ class ClientConn:
 		self.server.tss.addCommand({"type": "command", "content": {"cmd": "despawn", "id": self.id}}, self.server.timer.getTime(), self.server.sid)
 
 	def checkIdle(self, curr_time):
-		return curr_time-self.lastTimeReport > 70 #AFK X seconds = disconnnect. FIXME
+		return curr_time-self.lastTimeReport > 15 and not client.observer #AFK X seconds = disconnnect. FIXME
 
 
 class Timer:
@@ -136,7 +151,7 @@ class HandleClientsState():
 		message = receive(conn)
 		if message["type"] == "ConnectionToServer":
 			if message["content"]["nodeType"]== 0: #It is a client
-				command = self.handleNewClient(conn, message["content"]["reuse_id"])
+				command = self.handleNewClient(conn, message["content"]["reuse_id"], message["content"]["observer"])
 				self.server.tss.addCommand(command, current, self.server.sid)
 				self.server.tss.executeCommands(current)
 			elif message["content"]["nodeType"]== 1: #It is a server
@@ -162,7 +177,7 @@ class HandleClientsState():
 					message = json.dumps({"type":"InitialBoard", "content":{"board": self.server.tss.trailingStates[-1].board.getBoard(), "commands": commandList}})
 					send(conn, message)
 
-	def handleNewClient(self,conn, reuse_id):
+	def handleNewClient(self,conn, reuse_id, observer):
 		''' First, accept connection. Then, send the board and the player ID '''
 
 		conn.settimeout(1) #FIXME set timeout properly
@@ -171,7 +186,7 @@ class HandleClientsState():
 
 		#Send board and player ID
 
-		client = ClientConn(conn, self.server, reuse_id)
+		client = ClientConn(conn, self.server, reuse_id, observer)
 		board = json.dumps({"type": "board", "content": {"ID": client.id, "board": self.server.tss.trailingStates[0].board.getBoard()}})
 		send(conn, board)
 
@@ -244,7 +259,7 @@ class HandleClientsState():
 				return
 			elif current > self.server.nextTime:
 				self.server.time += 1
-				self.server.nextTime = self.server.timer.getTime() + 1 #FIXME time until next turn
+				self.server.nextTime = current + 1
 				commands = self.server.tss.trailingStates[0].board.dragonsAI(self.server.time) #FIXME - dragons not attacking sometimes. probably has to do with timeout in select 
 				if commands:
 					for command in commands:

@@ -72,10 +72,10 @@ def undoCommand(command, client):
 			y = obj.y
 			#self.board.board[x][y].dealDamage(self.board, x, y)
 			obj.hp = command["finalHP"]
-		client.changed = 1
+			client.changed = 1
 
 class Client:
-	def __init__(self, med_list, reuse_id=None, reuse_gui=None):
+	def __init__(self, med_list, reuse_id=None, reuse_gui=None, observer=False):
 		self.s = None #Will hold the connection between client and server
 		self.med_list = med_list
 
@@ -86,7 +86,7 @@ class Client:
 		self.s.connect((ip, port))  #Connect to server
 		self.s.settimeout(2) #FIXME timeout
 
-		server_connection = json.dumps({"type":"ConnectionToServer","content":{"nodeType":0, "reuse_id": reuse_id}})
+		server_connection = json.dumps({"type":"ConnectionToServer","content":{"nodeType":0, "reuse_id": reuse_id, "observer": observer}})
 
 		try:
 			send(self.s,server_connection) #Indicate to the server that I am a client
@@ -98,6 +98,7 @@ class Client:
 		self.lock = Semaphore()
 		self.dead = False
 		self.spawned = False #Necessary because a server might have trouble creating the client
+		self.observer = observer
 
 		self.changed = 0 #Board has changed
 		print 'Successfully connected.'
@@ -107,6 +108,9 @@ class Client:
 			self.gui = Gui()
 		else:
 			self.gui = reuse_gui
+
+		self.commandsNr = 0 #Efficiency purposes
+		self.MAX_COMANDS = 10000 #Each player will store the last 10000 commands
 
 	def getServer(self):
 		errors = 0
@@ -159,13 +163,18 @@ class Client:
 
 				self.lock.acquire()
 
+				if self.commandsNr > self.MAX_COMANDS + 100:
+					commandList = commandList[100:]
+					self.commandsNr -= 100
+
 				if command["cmd"] == "move": #MOVE CMD
 					u_id = command["id"]
 					pos = command["where"]
 
-					self.board.movePlayer(u_id, pos)
+					oldPos = self.board.movePlayer(u_id, pos)
 					self.changed = 1
-					commandList.append("TODO")
+					commandList.append({"cmd": "move", "where": oldPos, "id": u_id})
+					self.commandsNr += 1
 
 				elif command["cmd"] == "spawn" : #SPAWN CMD
 					player = command["player"]
@@ -185,7 +194,8 @@ class Client:
 					player.maxHP = hp
 					self.board.board[x][y] = player
 					self.changed = 1
-					commandList.append("TODO")
+					commandList.append({"cmd": "despawn", "id": u_id})
+					self.commandsNr += 1
 
 				elif command["cmd"] == "despawn":
 					u_id = command["id"]
@@ -195,13 +205,15 @@ class Client:
 						y = obj.y
 						if self.board.board[x][y].name != 'empty':
 							if self.board.board[x][y].name == 'player' and self.board.board[x][y].isUser:
-								print '\nYou died'
-								self.dead = True
+								print '\nYou died' #FIXME - wait a bit... it might rollback and player gets back to life
+								if not self.observer:
+									self.dead = True
 								self.lock.release()
 								return
 							self.board.board[x][y] = Empty(x,y)
 							self.changed = 1
-					commandList.append("TODO")
+						commandList.append({"cmd": "spawn", "player": {"x":x,"y":y,"id":u_id,"hp":obj.hp,"ap":obj.ap}})
+						self.commandsNr += 1
 
 				elif command["cmd"] == "heal":
 					u_id = command["id"]
@@ -211,9 +223,10 @@ class Client:
 						x = obj.x
 						y = obj.y
 						#self.board.board[x][y].healDamage(self.board, x, y)
+						commandList.append({"cmd": "damage", "subject": command["subject"], "id": u_id, "finalHP": obj.hp})
+						self.commandsNr += 1
 						obj.hp = command["finalHP"]
 						self.changed = 1
-					commandList.append("TODO")
 				elif command["cmd"] == "damage":
 					u_id = command["id"]
 					#Damage dragon
@@ -222,14 +235,16 @@ class Client:
 						x = obj.x
 						y = obj.y
 						#self.board.board[x][y].dealDamage(self.board, x, y)
+						commandList.append({"cmd": "heal", "subject": command["subject"], "id": u_id, "finalHP": obj.hp})
+						self.commandsNr += 1
 						obj.hp = command["finalHP"]
-					self.changed = 1
-					commandList.append("TODO")
+						self.changed = 1
 				elif command["cmd"] == "rollback": #Rollback
-					howMany = command["number"]
+					howMany = min(command["number"], len(commandList)) #We can only rollback as many commands as we have
 					for i in range(howMany):
 						undoCommand(commandList[-i-1], self) # "anti-commands"
 					commandList = commandList[:-howMany]
+					self.commandsNr -= howMany
 				self.lock.release()
 
 		except Exception,e:

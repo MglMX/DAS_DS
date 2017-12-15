@@ -4,6 +4,8 @@ from empty import Empty
 from Player import Player
 from Dragon import Dragon
 
+import sys #TODO remove me
+
 class MoveCommand:
 	def __init__(self, who, where):
 		self.cmd = "move"
@@ -166,13 +168,15 @@ class TrailingState:
 
 	def addCommand(self, command):
 		i = 0
-		for i in range(len(self.commands)): #Find the place to put the command
-			if self.commands[i].timestamp > command.timestamp: #FIXME - SOLVE CONFLICTS CRITICAL: while timestamps are equal, go back, unless there's a command of the same type but the serverID is lower or something
+		size = len(self.commands)
+		while i < size: #Find the place to put the command
+			if self.commands[i].timestamp > command.timestamp:
 				break
+			i += 1
 
 		while i > 0:
 			i -= 1
-			if self.commands[i].timestamp < command.timestamp or self.commands[i].issuedBy > command.issuedBy:
+			if self.commands[i].timestamp < command.timestamp or self.commands[i].issuedBy >= command.issuedBy:
 				#Solve conflicts using the server ids
 				i += 1
 				break
@@ -182,9 +186,8 @@ class TrailingState:
 	def executeRollBack(self, command, nr=0):
 		#Copy the board from this ts to the preceding ts's.
 		if not self.preceding:
-			if nr:
-				pass #TODO send number of commands to rollback to clients
-			return
+			return nr
+
 		board = self.board.getBoard()
 		self.preceding.board = Board()
 		for x in range(25):
@@ -215,7 +218,7 @@ class TrailingState:
 
 		#TODO If the real-time ts commands were marked as not executed, broadcast the antiCommands for the users
 			#Easier way to do it: Clients have a list of commands and servers just tells the client how many commands to go back
-		self.preceding.executeRollBack(command.preceding, nr) #Rollbacks should have a domino effect on all preceding states
+		return self.preceding.executeRollBack(command.preceding, nr) #Rollbacks should have a domino effect on all preceding states
 
 	def executeCommands(self, curr_time):
 		''' Also check for inconsistencies. Rollback if needed '''
@@ -243,7 +246,9 @@ class TrailingState:
 					commandsToBroadCast.append(toBroadCast)
 
 		if rollBack:
-			self.executeRollBack(command)
+			nr = self.executeRollBack(command)
+			if nr:
+				commandsToBroadCast.append({"cmd": "rollback", "number": nr})
 
 		for command in toRemove:
 			self.deleteCommand(command)
@@ -279,7 +284,7 @@ class TSS:
 		for ts in self.trailingStates:
 			toBroadCast = ts.executeCommands(curr_time)
 			for cmd in toBroadCast:
-				if cmd["issuedBy"] == self.server.sid:
+				if "issuedBy" in cmd and cmd["issuedBy"] == self.server.sid:
 					self.server.broadcastCommand(cmd) #We only want to broadcast commands sent by this server
 				else:
 					self.server.broadcastCommand(cmd, clientsOnly=True) #Dont broadcast what is not ours to other servers

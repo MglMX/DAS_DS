@@ -24,7 +24,7 @@ class Dragon(Unit):
 	def doAction(self, board, time):
 		''' A.I : Sleep while Dragon can't move. Do nothing if dragon is dead. Pick random player close to itself to attack '''
 		self.turn = time
-		if self.turn == self.nextTurn: #Wakes up
+		if self.turn >= self.nextTurn: #Wakes up
 			self.nextTurn = self.turn + random.randint(MIN_TIME_BETWEEN_TURNS, MAX_TIME_BETWEEN_TURNS)
 
 			if self.hp <= 0: #If dragon is dead, do nothing

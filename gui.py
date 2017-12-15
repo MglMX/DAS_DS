@@ -21,11 +21,12 @@ class Gui:
 				if unitBoard[x][y].name == 'dragon':
 					pygame.draw.rect(self.screen, (int(unitBoard[x][y].hp*2.55),0,0), (x*self.scale[0],y*self.scale[1], self.scale[0], self.scale[1]))
 				elif unitBoard[x][y].name == 'player':
+					color = max(0, min(255, 12.7*int(unitBoard[x][y].hp)))
 					if unitBoard[x][y].isUser:
-						pygame.draw.rect(self.screen, (0, int(unitBoard[x][y].hp * 12.7), 0),
+						pygame.draw.rect(self.screen, (0, color, 0), 
 							(x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
 					else:
-						pygame.draw.rect(self.screen, (0, 0, int(unitBoard[x][y].hp * 12.7)),
+						pygame.draw.rect(self.screen, (0, 0, color),
 							(x * self.scale[0], y * self.scale[1], self.scale[0], self.scale[1]))
 		pygame.display.flip()
 	def handleEvents(self, play, board,lock):
