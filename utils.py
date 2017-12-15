@@ -58,6 +58,3 @@ def receive(sock, MAX_SIZE=4096):
 	except:
 		log.println('Error in receive. Couldnt load JSON object from what has been received', 2, ['error'])
 		return json.loads('{"type":"Error","content":{"info":"Message is not json object"}}')
-	
-	
-
