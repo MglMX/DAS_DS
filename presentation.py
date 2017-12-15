@@ -26,6 +26,6 @@ for i in range(100): #100 players
 #s.runGame()
 
 for t in threads:
-	t.join(0.01)
+	t.join()
 
 print 'Done'

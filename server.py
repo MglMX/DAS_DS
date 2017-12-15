@@ -97,7 +97,7 @@ class ClientConn:
 		self.server.tss.addCommand({"type": "command", "content": {"cmd": "despawn", "id": self.id}}, self.server.timer.getTime(), self.server.sid)
 
 	def checkIdle(self, curr_time):
-		return curr_time-self.lastTimeReport > 15 and not client.observer #AFK X seconds = disconnnect. FIXME
+		return curr_time-self.lastTimeReport > 15 and not self.observer #AFK X seconds = disconnnect. FIXME
 
 
 class Timer:
@@ -352,7 +352,8 @@ class InitialState():
 			message = receive(self.server.med_sock)
 			assert message["type"] == 'ServerList'
 			neighbours = message["content"]["servers"]
-			self.server.curr_id = len(neighbours)*1000
+			if not self.server.curr_id:
+				self.server.curr_id = len(neighbours)*1000
 			if len(neighbours) != 1: #If the server is the only one in the network it should generate the board and spawn the dragons
 				log.println("I am not the first in the networkd. I should ask for the board.", 1)
 				self.server.createServerSocket(neighbours)
@@ -366,8 +367,11 @@ class InitialState():
 
 
 class Server:
-	def __init__(self, local_port, med_list):
-		self.local_ip = self.findIp()
+	def __init__(self, local_port, med_list, ip=None):
+		if not ip:
+			self.local_ip = self.findIp()
+		else:
+			self.local_ip = ip
 		self.local_port = local_port
 		self.med_list = med_list
 		self.sock = socket(AF_INET, SOCK_STREAM)
@@ -386,7 +390,7 @@ class Server:
 
 		self.time = 0 #TURN
 		self.nextTime = self.timer.getTime() + 1 #FIXME time until next turn
-		self.curr_id = 1 #Next ID to assign
+		self.curr_id = None #Next ID to assign
 		#################
 
 		self.clients = []
@@ -541,6 +545,10 @@ class Server:
 			node.remove()
 
 PORT = 6971
+IP = None
+
+if len(sys.argv) > 2:
+	IP = sys.argv[2]
 
 try:
 	PORT=int(sys.argv[1]) #optional port passing in case there are more than one server in the network.
@@ -548,7 +556,7 @@ except:
 	print "Indicate port. Ex: 6971"
 	PORT = int(raw_input("port: "))
 
-s = Server(PORT, MED_LIST)
+s = Server(PORT, MED_LIST, ip=IP)
 
 while 1:
 	log.println(s.state.stateName,1,'state') #Debug
